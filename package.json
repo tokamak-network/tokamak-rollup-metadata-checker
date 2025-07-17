@@ -1,0 +1,50 @@
+{
+  "name": "tokamak-rollup-metadata-checker",
+  "version": "1.0.0",
+  "description": "Web application to check L2 rollup status from Tokamak rollup metadata repository",
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "lint": "next lint",
+    "type-check": "tsc --noEmit",
+    "test": "jest"
+  },
+  "keywords": [
+    "tokamak",
+    "rollup",
+    "l2",
+    "metadata",
+    "checker",
+    "nextjs",
+    "react"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "autoprefixer": "^10.4.16",
+    "axios": "^1.6.0",
+    "clsx": "^2.0.0",
+    "date-fns": "^2.30.0",
+    "dotenv": "^17.2.0",
+    "ethers": "^6.8.0",
+    "lucide-react": "^0.294.0",
+    "next": "^14.0.0",
+    "postcss": "^8.4.31",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.4.1",
+    "recharts": "^2.8.0",
+    "tailwindcss": "^3.3.0"
+  },
+  "devDependencies": {
+    "@types/jest": "^29.5.5",
+    "@types/node": "^20.8.0",
+    "@types/react": "^18.2.0",
+    "@types/react-dom": "^18.2.0",
+    "eslint": "^8.0.0",
+    "eslint-config-next": "^14.0.0",
+    "jest": "^29.7.0",
+    "typescript": "^5.2.2"
+  }
+}
