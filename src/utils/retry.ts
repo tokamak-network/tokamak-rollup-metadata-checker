@@ -43,16 +43,22 @@ export async function withRetry<T>(
       lastError = error;
 
       if (attempt === opts.maxAttempts) {
-        logger.error(`Operation failed after ${opts.maxAttempts} attempts`, { error: error.message });
+        logger.error(`Operation failed after ${opts.maxAttempts} attempts`, {
+          error: error instanceof Error ? error.message : String(error)
+        });
         break;
       }
 
       if (opts.retryCondition && !opts.retryCondition(error)) {
-        logger.error(`Operation failed with non-retryable error: ${error.message}`);
+        logger.error(`Operation failed with non-retryable error: ${
+          error instanceof Error ? error.message : String(error)
+        }`);
         break;
       }
 
-      logger.warn(`Attempt ${attempt} failed: ${error.message}. Retrying in ${delay}ms...`);
+      logger.warn(`Attempt ${attempt} failed: ${
+        error instanceof Error ? error.message : String(error)
+      }. Retrying in ${delay}ms...`);
       await sleep(delay);
       delay = Math.min(delay * opts.backoffFactor, opts.maxDelay);
     }
@@ -80,7 +86,7 @@ export async function withTimeout<T>(
 }
 
 export class RateLimiter {
-  private queue: Array<{ resolve: Function; reject: Function }> = [];
+  private queue: Array<{ resolve: Function; reject: Function; fn: () => Promise<any> }> = [];
   private running = 0;
   private lastCall = 0;
 
@@ -91,7 +97,7 @@ export class RateLimiter {
 
   async execute<T>(fn: () => Promise<T>): Promise<T> {
     return new Promise((resolve, reject) => {
-      this.queue.push({ resolve, reject });
+      this.queue.push({ resolve, reject, fn });
       this.processQueue();
     });
   }
@@ -101,7 +107,7 @@ export class RateLimiter {
       return;
     }
 
-    const { resolve, reject } = this.queue.shift()!;
+    const { resolve, reject, fn } = this.queue.shift()!;
     this.running++;
 
     // Rate limiting

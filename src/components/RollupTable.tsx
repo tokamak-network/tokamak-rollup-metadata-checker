@@ -1,5 +1,7 @@
 import { useRouter } from 'next/navigation';
 import { L2Status } from '@/types/metadata';
+import { getNetworkName } from '@/utils/etherscan';
+import { getStatusColor, getStatusIndicator } from '@/utils/ui';
 
 interface RollupTableProps {
   rollups: L2Status[];
@@ -7,40 +9,6 @@ interface RollupTableProps {
 
 export function RollupTable({ rollups }: RollupTableProps) {
   const router = useRouter();
-
-  const getNetworkName = (chainId: number) => {
-    switch (chainId) {
-      case 1:
-        return 'Ethereum';
-      case 11155111:
-        return 'Sepolia';
-      default:
-        return `Chain ${chainId}`;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400';
-      case 'inactive':
-        return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400';
-      case 'maintenance':
-        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400';
-      default:
-        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300';
-    }
-  };
-
-  const getStatusIndicator = (status: string) => {
-    if (status === 'active' || status === 'healthy') {
-      return '🟢';
-    } else if (status === 'maintenance' || status === 'candidate') {
-      return '🟡';
-    } else {
-      return '🔴';
-    }
-  };
 
   return (
     <>

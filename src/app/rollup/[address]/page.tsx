@@ -5,10 +5,16 @@ import { useParams } from 'next/navigation';
 import { RollupMetadata, L2Status } from '@/types/metadata';
 import { RollupDetailView } from '@/components/RollupDetailView';
 import { ErrorMessage } from '@/components/ErrorMessage';
+import { ExplorerStatus } from '@/utils/explorer-checker';
 
 interface RollupDetailData {
   metadata: RollupMetadata;
   status: L2Status;
+  actualStats?: {
+    actualBlockTime: number;
+    actualGasLimit: number;
+  };
+  explorerStatuses?: ExplorerStatus[];
 }
 
 export default function RollupDetailPage() {
@@ -88,5 +94,12 @@ export default function RollupDetailPage() {
     );
   }
 
-  return <RollupDetailView metadata={rollupData.metadata} status={rollupData.status} />;
+  return <RollupDetailView
+    metadata={rollupData.metadata}
+    status={rollupData.status}
+    actualStats={rollupData.actualStats}
+    explorerStatuses={rollupData.explorerStatuses}
+    onRefresh={fetchRollupDetail}
+    loading={loading}
+  />;
 }

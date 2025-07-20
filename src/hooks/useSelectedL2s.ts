@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 
 export function useSelectedL2s() {
   const [selectedL2s, setSelectedL2s] = useState<string[]>([]);
@@ -19,29 +19,29 @@ export function useSelectedL2s() {
     }
   }, []);
 
-  const updateSelection = (selected: string[]) => {
+  const updateSelection = useCallback((selected: string[]) => {
     console.log('🔄 Updating L2 selection:', selected);
     setSelectedL2s(selected);
     localStorage.setItem('selectedL2s', JSON.stringify(selected));
-  };
+  }, []);
 
-  const toggleL2 = (address: string) => {
+  const toggleL2 = useCallback((address: string) => {
     const newSelection = selectedL2s.includes(address)
       ? selectedL2s.filter(addr => addr !== address)
       : [...selectedL2s, address];
     console.log('🔀 Toggling L2:', address, 'New selection:', newSelection);
     updateSelection(newSelection);
-  };
+  }, [selectedL2s, updateSelection]);
 
-  const clearAll = () => {
+  const clearAll = useCallback(() => {
     console.log('🗑️ Clearing all L2 selections');
     updateSelection([]);
-  };
+  }, [updateSelection]);
 
-  const selectAll = (addresses: string[]) => {
+  const selectAll = useCallback((addresses: string[]) => {
     console.log('✅ Selecting all L2s:', addresses);
     updateSelection(addresses);
-  };
+  }, [updateSelection]);
 
   return {
     selectedL2s,

@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { L2BasicInfo } from '@/types/metadata';
+import { getNetworkName } from '@/utils/etherscan';
+import { getStatusColor } from '@/utils/ui';
 
 interface L2SelectionPanelProps {
   availableL2s: L2BasicInfo[];
@@ -25,34 +27,6 @@ export function L2SelectionPanel({
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [networkFilter, setNetworkFilter] = useState<string>('all');
-
-  const getNetworkName = (chainId: number) => {
-    switch (chainId) {
-      case 1:
-        return 'Ethereum';
-      case 11155111:
-        return 'Sepolia';
-      default:
-        return `Chain ${chainId}`;
-    }
-  };
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'active':
-        return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400';
-      case 'inactive':
-        return 'bg-red-100 dark:bg-red-900/20 text-red-800 dark:text-red-400';
-      case 'maintenance':
-        return 'bg-yellow-100 dark:bg-yellow-900/20 text-yellow-800 dark:text-yellow-400';
-      case 'deprecated':
-        return 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-400';
-      case 'shutdown':
-        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300';
-      default:
-        return 'bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300';
-    }
-  };
 
   // 필터링된 L2 목록을 네트워크별로 그룹화
   const groupedL2s = useMemo(() => {

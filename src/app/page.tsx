@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
 import { L2Status, L2BasicInfo } from '@/types/metadata';
 import { L2SelectionPanel } from '@/components/L2SelectionPanel';
 import { SelectedL2Dashboard } from '@/components/SelectedL2Dashboard';
@@ -18,7 +18,7 @@ export default function Dashboard() {
   const { selectedL2s, toggleL2, clearAll, selectAll } = useSelectedL2s();
 
   // L2 기본 정보 가져오기
-  const fetchL2List = async () => {
+  const fetchL2List = useCallback(async () => {
     try {
       setL2sLoading(true);
       setError(null);
@@ -36,10 +36,10 @@ export default function Dashboard() {
     } finally {
       setL2sLoading(false);
     }
-  };
+  }, []);
 
-  // 선택된 L2들의 상태 가져오기
-  const fetchSelectedL2Status = async () => {
+  // 선택된 L2들의 상태 가져오기 (디바운싱 적용)
+  const fetchSelectedL2Status = useCallback(async () => {
     console.log('🔍 fetchSelectedL2Status called with selectedL2s:', selectedL2s);
 
     if (selectedL2s.length === 0) {
@@ -69,21 +69,25 @@ export default function Dashboard() {
     } finally {
       setStatusLoading(false);
     }
-  };
+  }, [selectedL2s]);
 
   // 초기 L2 목록 로드
   useEffect(() => {
     fetchL2List();
   }, []);
 
-  // 선택된 L2가 변경될 때마다 상태 업데이트
+  // 선택된 L2가 변경될 때마다 상태 업데이트 (디바운싱 적용)
   useEffect(() => {
-    fetchSelectedL2Status();
-  }, [selectedL2s]);
+    const timeoutId = setTimeout(() => {
+      fetchSelectedL2Status();
+    }, 300); // 300ms 디바운싱
 
-  const handleSelectAll = () => {
+    return () => clearTimeout(timeoutId);
+  }, [selectedL2s, fetchSelectedL2Status]);
+
+  const handleSelectAll = useCallback(() => {
     selectAll(availableL2s.map(l2 => l2.systemConfigAddress));
-  };
+  }, [availableL2s, selectAll]);
 
 
 

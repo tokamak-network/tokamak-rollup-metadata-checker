@@ -96,7 +96,7 @@ export function validateL2Status(status: L2Status): string[] {
     errors.push('Invalid or missing name');
   }
 
-  if (!isValidChainId(status.chainId)) {
+  if (!isValidChainId(status.l2ChainId)) {
     errors.push('Invalid chain ID');
   }
 

@@ -12,7 +12,7 @@ export function formatAsTable(data: L2Status[]): string {
   const headers = ['Name', 'Chain ID', 'Status', 'L2 Block', 'L1 Block', 'Sequencer', 'RPC', 'Last Checked'];
   const rows = data.map(status => [
     status.name,
-    status.chainId.toString(),
+    status.l2ChainId.toString(),
     status.isActive ? '✅ Active' : '❌ Inactive',
     status.latestL2Block.toString(),
     status.latestL1Block.toString(),
@@ -32,7 +32,7 @@ export function formatAsCsv(data: L2Status[]): string {
   const headers = 'name,chainId,isActive,latestL2Block,latestL1Block,sequencerStatus,proposerStatus,rpcStatus,lastChecked,errors\n';
   const rows = data.map(status => [
     status.name,
-    status.chainId.toString(),
+    status.l2ChainId.toString(),
     status.isActive.toString(),
     status.latestL2Block.toString(),
     status.latestL1Block.toString(),
@@ -112,7 +112,7 @@ export function formatErrors(data: L2Status[]): string {
   let output = `❌ Found ${errorsData.length} L2(s) with errors:\n\n`;
 
   errorsData.forEach(status => {
-    output += `${status.name} (Chain ID: ${status.chainId}):\n`;
+    output += `${status.name} (Chain ID: ${status.l2ChainId}):\n`;
     status.errors.forEach(error => {
       output += `  - ${error}\n`;
     });
