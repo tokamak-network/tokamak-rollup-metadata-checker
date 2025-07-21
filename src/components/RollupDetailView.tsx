@@ -1,6 +1,7 @@
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { RollupMetadata, L2Status } from '@/types/metadata';
+import { ethers } from 'ethers';
+import { RollupMetadata, L2Status, L1Contracts } from '@/types/metadata';
 import { BlockLink } from './BlockLink';
 import { getEtherscanAddressUrl, getL2ExplorerAddressUrlFromExplorers, getNetworkName } from '@/utils/etherscan';
 import { ExplorerStatus } from '@/utils/explorer-checker';
@@ -14,6 +15,8 @@ import { Card } from './ui/Card';
 import { ServiceList } from './ui/ServiceList';
 import { InfoCard } from './ui/InfoCard';
 import { ContractAddressGrid } from './ui/ContractAddressGrid';
+import { ContractVerificationCard } from './ui/ContractVerificationCard';
+import { verifyProxyAndImplementation } from '@/utils/abi';
 
 interface RollupDetailViewProps {
   metadata: RollupMetadata;
@@ -27,6 +30,13 @@ interface RollupDetailViewProps {
   loading?: boolean;
 }
 
+const L1_CONTRACTS: { name: string; key: keyof L1Contracts }[] = [
+  { name: 'SystemConfig', key: 'systemConfig' },
+  { name: 'OptimismPortal', key: 'optimismPortal' },
+  { name: 'L1StandardBridge', key: 'l1StandardBridge' },
+  { name: 'L2OutputOracle', key: 'l2OutputOracle' },
+];
+
 export function RollupDetailView({ metadata, status, actualStats, explorerStatuses, onRefresh, loading }: RollupDetailViewProps) {
   const [candidateMemo, setCandidateMemo] = useState<string>('');
   const [memoLoading, setMemoLoading] = useState(false);
@@ -34,6 +44,8 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
   const [operatorLoading, setOperatorLoading] = useState(false);
   const [managerAddress, setManagerAddress] = useState<string>('');
   const [managerLoading, setManagerLoading] = useState(false);
+  const [verificationResults, setVerificationResults] = useState<any[]>([]);
+  const [verificationLoading, setVerificationLoading] = useState(false);
 
         const fetchCandidateMemo = async () => {
     if (!metadata.staking.candidateAddress) return;
@@ -128,6 +140,40 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
       fetchManagerAddress();
     }
   }, [operatorAddress, metadata.l1ChainId]);
+
+  const verifyL1Contracts = async () => {
+    setVerificationLoading(true);
+    try {
+      const results: any[] = [];
+      const network = metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia';
+      const rpcUrl = metadata.l1ChainId === 1
+        ? process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com'
+        : process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/demo';
+
+      for (const contract of L1_CONTRACTS) {
+        const address = metadata.l1Contracts[contract.key] as string | undefined;
+        if (!address) continue;
+        try {
+          const result = await verifyProxyAndImplementation(contract.name, network, rpcUrl, address);
+          results.push(result);
+        } catch (err) {
+          results.push({ contractName: contract.name, error: err instanceof Error ? err.message : String(err) });
+        }
+      }
+      setVerificationResults(results);
+    } catch (error) {
+      setVerificationResults([]);
+    } finally {
+      setVerificationLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (metadata.l1Contracts) {
+      verifyL1Contracts();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [metadata.l1Contracts]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -663,6 +709,15 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                 )}
             </div>
           </Card>
+        </div>
+
+        {/* Contract Verification */}
+        <div className="mt-8">
+          <ContractVerificationCard
+            results={verificationResults}
+            loading={verificationLoading}
+            onRefresh={verifyL1Contracts}
+          />
         </div>
 
         {/* Contract Addresses */}

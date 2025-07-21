@@ -17,6 +17,54 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ error: 'Address and chainId are required' }, { status: 400 });
   }
 
+  // contractType이 'code'인 경우 컨트랙트 코드를 가져옴
+  if (contractType === 'code') {
+    try {
+      const rpcUrl = getRpcUrl(chainId);
+      console.log('🌐 RPC URL for code fetch:', rpcUrl);
+
+      const { getContractBytecode, analyzeContractType } = await import('@/utils/abi');
+
+      // 바이트코드 가져오기
+      const bytecode = await getContractBytecode(address, rpcUrl);
+      console.log('📦 Bytecode length:', bytecode !== '0x' ? bytecode.length - 2 : 0);
+
+      if (bytecode === '0x') {
+        return NextResponse.json({
+          result: null,
+          error: 'Contract not found at this address',
+          bytecodeExists: false
+        });
+      }
+
+      // 컨트랙트 타입 분석
+      const contractAnalysis = await analyzeContractType(address, rpcUrl);
+
+      return NextResponse.json({
+        result: {
+          bytecode: bytecode,
+          bytecodeLength: bytecode.length - 2, // 0x 제외
+          bytecodeExists: true,
+          contractType: contractAnalysis.contractType,
+          proxyInfo: contractAnalysis.proxyInfo
+        }
+      });
+    } catch (error) {
+      console.error('❌ Error fetching contract code:', error);
+      return NextResponse.json({
+        error: 'Failed to fetch contract code',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }, { status: 500 });
+    }
+  }
+
+  console.log('🚀 API Call - Address:', address, 'ChainId:', chainId, 'Function:', functionName, 'ContractType:', contractType, 'Params:', params);
+
+  if (!address || !chainId) {
+    console.error('❌ Missing required parameters');
+    return NextResponse.json({ error: 'Address and chainId are required' }, { status: 400 });
+  }
+
   try {
     // RPC URL 가져오기
     const rpcUrl = getRpcUrl(chainId);
