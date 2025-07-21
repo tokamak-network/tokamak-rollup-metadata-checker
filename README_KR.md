@@ -2,9 +2,7 @@
 
 ## 개요
 
-이 프로젝트는 Tokamak Network에서 공식 배포한 L1 컨트랙트(프록시 및 구현체)의 바이트코드가 실제 배포된 컨트랙트와 일치하는지 검증하는 도구입니다. 다양한 프록시 패턴(Proxy, L1ChugSplashProxy, ResolvedDelegateProxy, L1UsdcBridgeProxy 등)을 지원하며, 프록시 타입에 따라 구현체/어드민 주소를 올바르게 추출합니다.
-
-또한, 메인화면에서 L2 목록을 선택하여 해당 L2의 메타데이터(rollup info, SystemConfig, L2OutputOracle, OptimismPortal 등)와 실제 상태를 실시간으로 체크할 수 있습니다. L2에 연결된 L1/L2 컨트랙트가 Tokamak 공식 배포 버전과 일치하는지(프록시/구현체 포함) 바이트코드로 검증하는 로직도 포함되어 있습니다.
+이 프로젝트는 [Tokamak Rollup Metadata Repository](https://github.com/tokamak-network/tokamak-rollup-metadata-repository/tree/main/data)에 등록된 L2 롤업 정보가 정상적인지 확인하는 툴입니다. 사용자가 확인하기 원하는 롤업의 L1/L2의 정보를 확인할 뿐만아니라, 나아가 L1/L2 컨트랙이 공식 배포버전과 동일한지 검증하는 기능도 수행합니다.
 
 화면에서는 아래와 같은 L2 메타데이터와 상태 정보를 한눈에 확인할 수 있습니다:
 - L2 이름, 설명, 로고, 네트워크, 체인ID
