@@ -1,13 +1,10 @@
 # Tokamak Rollup Metadata Checker
 
-
 ## Overview
 
-This project verifies that deployed L1 contracts (including proxies and their implementations) match the official bytecode published by Tokamak Network. It supports various proxy patterns (Proxy, L1ChugSplashProxy, ResolvedDelegateProxy, L1UsdcBridgeProxy, etc.) and extracts implementation/admin addresses according to proxy type.
+This project is a tool to verify the validity of L2 rollup information registered in [the Tokamak Rollup Metadata Repository](https://github.com/tokamak-network/tokamak-rollup-metadata-repository/tree/main/data). It allows users to check not only the L1/L2 information of the rollup they want to inspect, but also verifies whether the L1/L2 contracts are identical to the official deployment version.
 
-On the main screen, you can select an L2 from a list and check its metadata (rollup info, SystemConfig, L2OutputOracle, OptimismPortal, etc.) and real-time status. The system also verifies that L1/L2 contracts associated with the L2 (including proxies/implementations) match the official Tokamak deployment bytecode.
-
-The UI displays the following L2 metadata and status fields at a glance:
+The UI displays the following L2 metadata and status information at a glance:
 - L2 name, description, logo, network, chain ID
 - L2/L1 block height, block time, gas limit, last proposal/batch time
 - Service status for RPC, block explorer, bridge, staking, etc.
@@ -17,9 +14,9 @@ The UI displays the following L2 metadata and status fields at a glance:
 
 ## ✨ Features
 
-- **L2 metadata and status check**: Select an L2 on the main screen to view its metadata and real-time status (block, sequencer, contract, etc.)
+- **L2 metadata and status check**: On the main screen, select an L2 to view its metadata and real-time status (block, sequencer, contract, etc.)
   - Example: L2 name, description, network, chain ID, block height, block time, gas limit, proposal/batch time, service (RPC/explorer/bridge/staking) status, contract addresses, staking info, etc.
-- **L1/L2 contract official deployment verification**: Checks that L1/L2 contracts (including proxies/implementations) associated with the L2 match the official Tokamak bytecode
+- **L1/L2 contract official deployment verification**: Verifies that L1/L2 contracts (including proxies/implementations) associated with the L2 match the official Tokamak deployment bytecode
 - **Proxy type awareness**: Extracts implementation/admin addresses and compares bytecode according to proxy structure
 - **API endpoint**: Next.js-based L1 contract verification API
 - **UI component**: React component to display verification results
@@ -80,7 +77,7 @@ npm run dev
 - Only L1 contract verification is supported (L2 monitoring/CLI is not included)
 - Proxy/implementation bytecode comparison is proxy-type aware
 - All official proxy bytecodes must be present in `public/bytecodes/`
-
+- For Korean instructions, see `README_KR.md`
 
 ## License
 MIT
