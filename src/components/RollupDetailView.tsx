@@ -37,6 +37,15 @@ const L1_CONTRACTS: { name: string; key: keyof L1Contracts }[] = [
   { name: 'L2OutputOracle', key: 'l2OutputOracle' },
 ];
 
+function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="flex justify-between">
+      <span className="text-sm text-gray-600 dark:text-gray-400">{label}</span>
+      <span className="text-sm text-gray-900 dark:text-white">{value}</span>
+    </div>
+  );
+}
+
 export function RollupDetailView({ metadata, status, actualStats, explorerStatuses, onRefresh, loading }: RollupDetailViewProps) {
   const [candidateMemo, setCandidateMemo] = useState<string>('');
   const [memoLoading, setMemoLoading] = useState(false);
@@ -241,280 +250,207 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        {/* Main Info */}
-        <Card className="mb-8">
-          <div className="p-6">
-            <div className="flex items-start justify-between">
-              <div className="flex items-center space-x-4">
-                {metadata.logo && (
-                  <img
-                    src={metadata.logo}
-                    alt={`${metadata.name} logo`}
-                    className="w-16 h-16 rounded-lg"
-                  />
-                )}
-                <div>
-                  <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
-                    {metadata.name}
-                  </h1>
-                  <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">
-                    {metadata.description}
-                  </p>
-                  <div className="flex items-center space-x-4 mt-3">
-                    <StatusBadge status={metadata.status} />
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      {getNetworkName(metadata.l1ChainId)}
-                    </span>
-                    <span className="text-sm text-gray-500 dark:text-gray-400">
-                      Chain ID: {metadata.l2ChainId}
-                    </span>
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center space-x-3">
-                {onRefresh && (
-                  <button
-                    onClick={onRefresh}
-                    disabled={loading}
-                    className="flex items-center space-x-2 px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                    title="Refresh data"
-                  >
-                    <RefreshIcon className={loading ? 'animate-spin' : ''} />
-                    <span>{loading ? 'Refreshing...' : 'Refresh'}</span>
-                  </button>
-                )}
-                {metadata.website && (
-                  <Link
-                    href={metadata.website}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="bg-tokamak-blue hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center space-x-2"
-                  >
-                    <span>Visit Website</span>
-                    <ExternalLinkIcon size="sm" />
-                  </Link>
-                )}
-              </div>
-            </div>
-          </div>
-        </Card>
-
-        {/* Status Grid */}
+        {/* 맨 위 상태 정보 4열 */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
           <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">L2 RPC</p>
-                <div className="flex items-center space-x-2 mt-1">
-                  <StatusDisplay status={status.rpcStatus} />
-                </div>
-              </div>
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">L2 RPC</p>
+            <div className="flex items-center space-x-2 mt-1">
+              <StatusDisplay status={status.rpcStatus} />
             </div>
           </Card>
-
           <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Block Explorers</p>
-                <div className="flex items-center space-x-2 mt-1">
-                  <StatusDisplay status={(() => {
-                    if (!metadata.explorers?.length) {
-                      return 'Unavailable';
-                    }
-
-                    const inactiveCount = metadata.explorers.filter(e => e.status === 'inactive').length;
-                    const activeInMetadata = metadata.explorers.filter(e => e.status === 'active');
-
-                    if (activeInMetadata.length === 0) {
-                      return 'Unavailable';
-                    }
-
-                    let statusText;
-                    if (explorerStatuses) {
-                      const workingCount = explorerStatuses.filter(e => e.isActive).length;
-                      const unhealthyCount = activeInMetadata.length - workingCount;
-
-                      if (workingCount === 0 && unhealthyCount > 0) {
-                        statusText = `${unhealthyCount} Unhealthy`;
-                      } else if (workingCount === activeInMetadata.length) {
-                        statusText = `${workingCount} Available`;
-                      } else if (workingCount > 0 && unhealthyCount > 0) {
-                        statusText = `${workingCount} Available, ${unhealthyCount} Unhealthy`;
-                      } else {
-                        statusText = `${workingCount} Available`;
-                      }
-                    } else {
-                      statusText = `${activeInMetadata.length} Available`;
-                    }
-
-                    return statusText;
-                  })()} />
-                </div>
-              </div>
-              {metadata.explorers?.find(e => e.status === 'active') && (
-                <Link
-                  href={metadata.explorers.find(e => e.status === 'active')!.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                  title="Open first active explorer"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </Link>
-              )}
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Block Explorers</p>
+            <div className="flex items-center space-x-2 mt-1">
+              <StatusDisplay status={(() => {
+                if (!metadata.explorers?.length) return 'Unavailable';
+                const activeInMetadata = metadata.explorers.filter(e => e.status === 'active');
+                return activeInMetadata.length > 0 ? 'Available' : 'Unavailable';
+              })()} />
             </div>
           </Card>
-
           <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Bridge</p>
-                <div className="flex items-center space-x-2 mt-1">
-                  <StatusDisplay status={(() => {
-                    const activeCount = metadata.bridges?.filter(b => b.status === 'active').length || 0;
-                    const totalCount = metadata.bridges?.length || 0;
-
-                    let statusText;
-                    if (activeCount === 0) {
-                      statusText = 'Unavailable';
-                    } else if (activeCount === totalCount) {
-                      statusText = `${totalCount} Available`;
-                    } else {
-                      statusText = `${activeCount}/${totalCount} Available`;
-                    }
-
-                    return statusText;
-                  })()} />
-                </div>
-              </div>
-              {metadata.bridges?.find(b => b.status === 'active') && (
-                <Link
-                  href={metadata.bridges.find(b => b.status === 'active')!.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                  title="Open first active bridge"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </Link>
-              )}
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Bridge</p>
+            <div className="flex items-center space-x-2 mt-1">
+              <StatusDisplay status={(() => {
+                const activeCount = metadata.bridges?.filter(b => b.status === 'active').length || 0;
+                return activeCount > 0 ? 'Available' : 'Unavailable';
+              })()} />
             </div>
           </Card>
-
           <Card>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Staking</p>
-                <div className="flex items-center space-x-2 mt-1">
-                  <StatusDisplay status={status.stakingStatus} />
-                </div>
-              </div>
+            <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Staking</p>
+            <div className="flex items-center space-x-2 mt-1">
+              <StatusDisplay status={status.stakingStatus} />
             </div>
           </Card>
         </div>
 
-        {/* Technical Details Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Left: Metadata + Sequencer */}
-          <div className="space-y-6">
-            <InfoCard
-              title="Metadata"
-              items={[
-                {
-                  label: "Created At",
-                  value: formatTimestamp(new Date(metadata.createdAt).getTime())
-                },
-                {
-                  label: "Last Updated",
-                  value: formatTimestamp(new Date(metadata.lastUpdated).getTime())
-                }
-              ]}
-              headerLink={{
-                url: `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/${metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia'}/${metadata.l1Contracts.systemConfig.toLowerCase()}.json`,
-                tooltip: "View metadata file in repository"
-              }}
-            />
-            <Card>
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Sequencer Information
-              </h3>
-              <div className="space-y-3">
+        {/* 2열: Network Information / Network Status */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <InfoCard
+            title="Network Information"
+            items={[
+              { label: "Rollup Type", value: <span className="capitalize">{metadata.rollupType}</span> },
+              { label: "Stack", value: `${metadata.stack.name} v${metadata.stack.version}` },
+              { label: "L1 Chain ID", value: metadata.l1ChainId },
+              { label: "L2 Chain ID", value: metadata.l2ChainId },
+              { label: "L2 RPC URL", value: <UrlDisplay url={metadata.rpcUrl} label="" copyTooltip="Copy RPC URL" linkTooltip="Open RPC URL" /> },
+              ...(metadata.wsUrl ? [{ label: "L2 WebSocket URL", value: <UrlDisplay url={metadata.wsUrl} label="" copyTooltip="Copy WebSocket URL" linkTooltip="Open WebSocket URL" /> }] : [])
+            ]}
+          />
+          <Card>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Network Status</h3>
+            <div className="space-y-3">
+              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">Latest L2 Block</span><span className="text-sm font-medium text-gray-900 dark:text-white">{status.latestL2Block.toLocaleString()}</span></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">Latest L1 Block</span><BlockLink chainId={metadata.l1ChainId} blockNumber={status.latestL1Block} /></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">L2 Block Time</span><div className="text-sm font-medium text-gray-900 dark:text-white"><span>⚙️ {metadata.networkConfig.blockTime}s</span>{actualStats && (actualStats.actualBlockTime && actualStats.actualBlockTime > 0 ? (<span className="ml-3">| 🔄 <span className="text-green-600 dark:text-green-400">{actualStats.actualBlockTime}s</span> (actual)</span>) : (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ RPC failed</span>))}</div></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">L2 Gas Limit</span><div className="text-sm font-medium text-gray-900 dark:text-white"><span>⚙️ {parseInt(metadata.networkConfig.gasLimit).toLocaleString()} gas</span>{actualStats && (actualStats.actualGasLimit && actualStats.actualGasLimit > 0 ? (<span className="ml-3">| ⛽ <span className="text-blue-600 dark:text-blue-400">{actualStats.actualGasLimit.toLocaleString()} gas</span> (actual)</span>) : (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ RPC failed</span>))}</div></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">Last Proposal</span><div className="text-right">{status.lastProposalTime > 0 ? (<span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(status.lastProposalTime)}</span>) : (<div><span className="text-sm text-red-500 dark:text-red-400">Failed to fetch</span>{status.proposalError && (<div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{status.proposalError}</div>)}</div>)}</div></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">Last Batch</span><div className="text-right">{status.lastBatchTime > 0 ? (<span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(status.lastBatchTime)}</span>) : (<div><span className="text-sm text-red-500 dark:text-red-400">Failed to fetch</span>{status.batchError && (<div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{status.batchError}</div>)}</div>)}</div></div>
+            </div>
+          </Card>
+        </div>
+
+        {/* 2열: Block Explorers / Bridges */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <ServiceList
+            title="Block Explorers"
+            services={metadata.explorers || []}
+            emptyMessage="No block explorers available"
+          />
+          <ServiceList
+            title="Bridges"
+            services={metadata.bridges || []}
+            emptyMessage="No bridges available"
+          />
+        </div>
+
+        {/* 2열: Metadata / Sequencer */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <InfoCard
+            title="Metadata"
+            items={[
+              { label: "Created At", value: formatTimestamp(new Date(metadata.createdAt).getTime()) },
+              { label: "Last Updated", value: formatTimestamp(new Date(metadata.lastUpdated).getTime()) }
+            ]}
+            headerLink={{
+              url: `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/${metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia'}/${metadata.l1Contracts.systemConfig.toLowerCase()}.json`,
+              tooltip: "View metadata file in repository"
+            }}
+          />
+          <Card>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Sequencer Information</h3>
+            <div className="space-y-3">
+                <div className="flex justify-between">
+                  <span className="text-sm text-gray-600 dark:text-gray-400 font-bold">
+                    Sequencer Address
+                    {sequencerLoading && <span className="ml-2 text-gray-400">...</span>}
+                    {isSequencerMatch === true && <span className="ml-2 text-green-600">✅</span>}
+                    {isSequencerMatch === false && <span className="ml-2 text-red-600">❌</span>}
+                  </span>
+                  <AddressDisplay
+                    address={metadata.sequencer?.address || '-'}
+                    label=""
+                    explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer?.address || '')}
+                    copyTooltip="Copy Sequencer Address"
+                    linkTooltip="View on Etherscan"
+                  />
+                </div>
+                {metadata.sequencer?.batcherAddress && (
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400 font-bold">
-                      Sequencer Address
-                      {sequencerLoading && <span className="ml-2 text-gray-400">...</span>}
-                      {isSequencerMatch === true && <span className="ml-2 text-green-600">✅</span>}
-                      {isSequencerMatch === false && <span className="ml-2 text-red-600">❌</span>}
-                    </span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Batcher Address</span>
                     <AddressDisplay
-                      address={metadata.sequencer?.address || '-'}
+                      address={metadata.sequencer.batcherAddress}
                       label=""
-                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer?.address || '')}
-                      copyTooltip="Copy Sequencer Address"
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.batcherAddress)}
+                      copyTooltip="Copy Batcher Address"
                       linkTooltip="View on Etherscan"
                     />
                   </div>
-                  {metadata.sequencer?.batcherAddress && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Batcher Address</span>
-                      <AddressDisplay
-                        address={metadata.sequencer.batcherAddress}
-                        label=""
-                        explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.batcherAddress)}
-                        copyTooltip="Copy Batcher Address"
-                        linkTooltip="View on Etherscan"
-                      />
-                    </div>
-                  )}
-                  {metadata.sequencer?.proposerAddress && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Proposer Address</span>
-                      <AddressDisplay
-                        address={metadata.sequencer.proposerAddress}
-                        label=""
-                        explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.proposerAddress)}
-                        copyTooltip="Copy Proposer Address"
-                        linkTooltip="View on Etherscan"
-                      />
-                    </div>
-                  )}
-                  {metadata.sequencer?.aggregatorAddress && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Aggregator Address</span>
-                      <AddressDisplay
-                        address={metadata.sequencer.aggregatorAddress}
-                        label=""
-                        explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.aggregatorAddress)}
-                        copyTooltip="Copy Aggregator Address"
-                        linkTooltip="View on Etherscan"
-                      />
-                    </div>
-                  )}
-                  {metadata.sequencer?.trustedSequencer && (
-                    <div className="flex justify-between">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Trusted Sequencer</span>
-                      <AddressDisplay
-                        address={metadata.sequencer.trustedSequencer}
-                        label=""
-                        explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.trustedSequencer)}
-                        copyTooltip="Copy Trusted Sequencer Address"
-                        linkTooltip="View on Etherscan"
-                      />
-                    </div>
-                  )}
-              </div>
-            </Card>
-          </div>
-          {/* Right: Staking Information */}
+                )}
+                {metadata.sequencer?.proposerAddress && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Proposer Address</span>
+                    <AddressDisplay
+                      address={metadata.sequencer.proposerAddress}
+                      label=""
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.proposerAddress)}
+                      copyTooltip="Copy Proposer Address"
+                      linkTooltip="View on Etherscan"
+                    />
+                  </div>
+                )}
+                {metadata.sequencer?.aggregatorAddress && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Aggregator Address</span>
+                    <AddressDisplay
+                      address={metadata.sequencer.aggregatorAddress}
+                      label=""
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.aggregatorAddress)}
+                      copyTooltip="Copy Aggregator Address"
+                      linkTooltip="View on Etherscan"
+                    />
+                  </div>
+                )}
+                {metadata.sequencer?.trustedSequencer && (
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Trusted Sequencer</span>
+                    <AddressDisplay
+                      address={metadata.sequencer.trustedSequencer}
+                      label=""
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.trustedSequencer)}
+                      copyTooltip="Copy Trusted Sequencer Address"
+                      linkTooltip="View on Etherscan"
+                    />
+                  </div>
+                )}
+            </div>
+          </Card>
+        </div>
+
+        {/* 2열: Native Token / Staking */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-8">
+          <Card>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">Native Token</h3>
+            <div className="space-y-3">
+              <InfoRow label="Symbol" value={<span className="font-mono">{metadata.nativeToken.symbol}</span>} />
+              <InfoRow label="Name" value={metadata.nativeToken.name} />
+              <InfoRow label="Decimals" value={metadata.nativeToken.decimals} />
+              <InfoRow
+                label="L1 Address"
+                value={
+                  <AddressDisplay
+                    address={metadata.nativeToken.l1Address}
+                    label=""
+                    explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.nativeToken.l1Address)}
+                    copyTooltip="Copy L1 Address"
+                    linkTooltip="View on Etherscan"
+                  />
+                }
+              />
+              <InfoRow
+                label="L2 Address"
+                value={
+                  <AddressDisplay
+                    address={metadata.l2Contracts.nativeToken}
+                    label=""
+                    explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.nativeToken)}
+                    copyTooltip="Copy L2 Address"
+                    linkTooltip="View on L2 Explorer"
+                  />
+                }
+              />
+              {metadata.nativeToken.logoUrl && (
+                <InfoRow
+                  label="Icon"
+                  value={<img src={metadata.nativeToken.logoUrl} alt="Token Icon" className="w-6 h-6 rounded-full" />}
+                />
+              )}
+            </div>
+          </Card>
           <Card>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Staking Information
-              </h3>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Staking Information</h3>
             </div>
             <div className="space-y-3">
                 <div className="flex justify-between">
