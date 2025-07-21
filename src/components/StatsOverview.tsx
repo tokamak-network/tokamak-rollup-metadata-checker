@@ -1,4 +1,5 @@
 import { L2Status } from '@/types/metadata';
+import { StatsCard } from './ui/StatsCard';
 
 interface StatsOverviewProps {
   rollups: L2Status[];
@@ -40,25 +41,14 @@ export function StatsOverview({ rollups }: StatsOverviewProps) {
   return (
     <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 mb-8">
       {stats.map((stat) => (
-        <div key={stat.name} className={`card ${stat.bgColor}`}>
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <div className={`text-2xl font-bold ${stat.color}`}>
-                {stat.value}
-              </div>
-            </div>
-            <div className="ml-3">
-              <div className="text-sm font-medium text-gray-900 dark:text-white">
-                {stat.name}
-              </div>
-              {totalRollups > 0 && (
-                <div className="text-xs text-gray-500 dark:text-gray-400">
-                  {((stat.value / totalRollups) * 100).toFixed(1)}%
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <StatsCard
+          key={stat.name}
+          name={stat.name}
+          value={stat.value}
+          total={totalRollups}
+          color={stat.color}
+          bgColor={stat.bgColor}
+        />
       ))}
     </div>
   );

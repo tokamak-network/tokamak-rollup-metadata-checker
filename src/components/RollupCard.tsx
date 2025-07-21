@@ -1,6 +1,8 @@
 import { L2Status } from '@/types/metadata';
 import { getNetworkName } from '@/utils/etherscan';
 import { getStatusColor } from '@/utils/ui';
+import { StatusBadge } from './ui/StatusBadge';
+import { Card } from './ui/Card';
 
 interface RollupCardProps {
   rollup: L2Status;
@@ -9,12 +11,10 @@ interface RollupCardProps {
 export function RollupCard({ rollup }: RollupCardProps) {
 
   return (
-    <div className="card">
+    <Card>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-lg font-semibold text-gray-900 dark:text-white">{rollup.name}</h3>
-        <span className={`status-badge ${getStatusColor(rollup.status)}`}>
-          {rollup.status}
-        </span>
+        <StatusBadge status={rollup.status} />
       </div>
 
       <div className="space-y-3">
@@ -75,6 +75,6 @@ export function RollupCard({ rollup }: RollupCardProps) {
           </div>
         )}
       </div>
-    </div>
+    </Card>
   );
 }

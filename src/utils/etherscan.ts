@@ -13,7 +13,7 @@ const NETWORK_CONFIGS: Record<number, NetworkConfig> = {
     baseUrl: 'https://etherscan.io'
   },
   11155111: {
-    name: 'Sepolia Testnet',
+    name: 'Sepolia',
     baseUrl: 'https://sepolia.etherscan.io'
   },
   5: {

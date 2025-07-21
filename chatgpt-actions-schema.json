@@ -1,0 +1,90 @@
+{
+  "openapi": "3.0.0",
+  "info": {
+    "title": "Tokamak Rollup Status API",
+    "description": "API to check Tokamak L2 rollup status and metadata",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "https://your-domain.vercel.app/api",
+      "description": "Production server"
+    }
+  ],
+  "paths": {
+    "/l2-list": {
+      "get": {
+        "summary": "Get list of all L2 rollups",
+        "description": "Returns basic information about all available L2 rollups",
+        "responses": {
+          "200": {
+            "description": "List of L2 rollups",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "properties": {
+                      "name": {"type": "string"},
+                      "systemConfigAddress": {"type": "string"},
+                      "l1ChainId": {"type": "number"},
+                      "l2ChainId": {"type": "number"},
+                      "rollupType": {"type": "string"},
+                      "status": {"type": "string"},
+                      "network": {"type": "string"},
+                      "isCandidate": {"type": "boolean"}
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/rollups": {
+      "get": {
+        "summary": "Get rollup status by addresses",
+        "description": "Get detailed status information for specific rollups",
+        "parameters": [
+          {
+            "name": "addresses",
+            "in": "query",
+            "description": "Comma-separated SystemConfig addresses",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rollup status information"
+          }
+        }
+      }
+    },
+    "/rollup/{address}": {
+      "get": {
+        "summary": "Get single rollup details",
+        "description": "Get complete metadata and status for a specific rollup",
+        "parameters": [
+          {
+            "name": "address",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Rollup details"
+          }
+        }
+      }
+    }
+  }
+}

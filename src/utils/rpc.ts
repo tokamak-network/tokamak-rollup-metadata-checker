@@ -82,7 +82,7 @@ export function isValidRpcUrl(url: string): boolean {
 /**
  * Generic JSON-RPC call function
  */
-async function makeRpcCall(url: string, method: string, params: any[] = []): Promise<any> {
+export async function makeRpcCall(url: string, method: string, params: any[] = []): Promise<any> {
   // RPC URL 유효성 검사
   if (!isValidRpcUrl(url)) {
     throw new Error(`Invalid or placeholder RPC URL: ${url}`);
@@ -189,6 +189,21 @@ export async function getSafeBlockNumber(rpcUrl: string): Promise<number> {
   } catch (error) {
     console.error(`Failed to fetch safe block from ${rpcUrl}:`, error);
     throw error;
+  }
+}
+
+/**
+ * Get RPC URL based on chain ID
+ */
+export function getRpcUrl(chainId: number | string): string {
+  const chainIdNum = typeof chainId === 'string' ? parseInt(chainId) : chainId;
+
+  if (chainIdNum === 11155111) {
+    // Sepolia testnet
+    return process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
+  } else {
+    // Mainnet (default)
+    return process.env.MAINNET_RPC_URL || 'https://ethereum.publicnode.com';
   }
 }
 

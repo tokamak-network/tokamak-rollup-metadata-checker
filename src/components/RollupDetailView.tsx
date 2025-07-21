@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { useState, useEffect } from 'react';
 import { RollupMetadata, L2Status } from '@/types/metadata';
 import { BlockLink } from './BlockLink';
 import { getEtherscanAddressUrl, getL2ExplorerAddressUrlFromExplorers, getNetworkName } from '@/utils/etherscan';
@@ -7,6 +8,12 @@ import { getStatusColor, getStatusIndicator } from '@/utils/ui';
 import { AddressDisplay } from './ui/AddressDisplay';
 import { UrlDisplay } from './ui/UrlDisplay';
 import { ExternalLinkIcon, RefreshIcon } from './ui/Icons';
+import { StatusBadge } from './ui/StatusBadge';
+import { StatusDisplay } from './ui/StatusDisplay';
+import { Card } from './ui/Card';
+import { ServiceList } from './ui/ServiceList';
+import { InfoCard } from './ui/InfoCard';
+import { ContractAddressGrid } from './ui/ContractAddressGrid';
 
 interface RollupDetailViewProps {
   metadata: RollupMetadata;
@@ -21,6 +28,106 @@ interface RollupDetailViewProps {
 }
 
 export function RollupDetailView({ metadata, status, actualStats, explorerStatuses, onRefresh, loading }: RollupDetailViewProps) {
+  const [candidateMemo, setCandidateMemo] = useState<string>('');
+  const [memoLoading, setMemoLoading] = useState(false);
+  const [operatorAddress, setOperatorAddress] = useState<string>('');
+  const [operatorLoading, setOperatorLoading] = useState(false);
+  const [managerAddress, setManagerAddress] = useState<string>('');
+  const [managerLoading, setManagerLoading] = useState(false);
+
+        const fetchCandidateMemo = async () => {
+    if (!metadata.staking.candidateAddress) return;
+
+    setMemoLoading(true);
+    try {
+      // ethers를 사용하여 컨트랙트의 memo() 함수 호출
+      const url = `/api/contract-call?address=${metadata.staking.candidateAddress}&chainId=${metadata.l1ChainId}&function=memo&contractType=candidate-add-on`
+      console.log(url)
+
+      const response = await fetch(url);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.result) {
+          setCandidateMemo(data.result);
+        } else if (data.error) {
+          setCandidateMemo('No memo function found');
+        } else {
+          setCandidateMemo('No memo found');
+        }
+      } else {
+        setCandidateMemo('Failed to fetch memo');
+      }
+    } catch (error) {
+      console.error('Error fetching candidate memo:', error);
+      setCandidateMemo('Error loading memo');
+    } finally {
+      setMemoLoading(false);
+    }
+  };
+
+        const fetchOperatorAddress = async () => {
+    if (!metadata.staking.candidateAddress) return;
+
+    setOperatorLoading(true);
+    try {
+      const response = await fetch(`/api/contract-call?address=${metadata.staking.candidateAddress}&chainId=${metadata.l1ChainId}&function=operator&contractType=candidate-add-on`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.result && data.result !== '0x0000000000000000000000000000000000000000') {
+          setOperatorAddress(data.result);
+        } else {
+          setOperatorAddress('No operator found');
+        }
+      } else {
+        setOperatorAddress('Failed to fetch operator');
+      }
+    } catch (error) {
+      console.error('Error fetching operator:', error);
+      setOperatorAddress('Error loading operator');
+    } finally {
+      setOperatorLoading(false);
+    }
+  };
+
+        const fetchManagerAddress = async () => {
+    if (!operatorAddress || operatorAddress === 'No operator found' || operatorAddress === 'Failed to fetch operator' || operatorAddress === 'Error loading operator') return;
+
+    setManagerLoading(true);
+    try {
+      const response = await fetch(`/api/contract-call?address=${operatorAddress}&chainId=${metadata.l1ChainId}&function=manager&contractType=operator-manager`);
+
+      if (response.ok) {
+        const data = await response.json();
+        if (data.result && data.result !== '0x0000000000000000000000000000000000000000') {
+          setManagerAddress(data.result);
+        } else {
+          setManagerAddress('No manager found');
+        }
+      } else {
+        setManagerAddress('Failed to fetch manager');
+      }
+    } catch (error) {
+      console.error('Error fetching manager:', error);
+      setManagerAddress('Error loading manager');
+    } finally {
+      setManagerLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (metadata.staking.candidateAddress) {
+      fetchCandidateMemo();
+      fetchOperatorAddress();
+    }
+  }, [metadata.staking.candidateAddress, metadata.l1ChainId]);
+
+  useEffect(() => {
+    if (operatorAddress && operatorAddress !== 'No operator found' && operatorAddress !== 'Failed to fetch operator' && operatorAddress !== 'Error loading operator') {
+      fetchManagerAddress();
+    }
+  }, [operatorAddress, metadata.l1ChainId]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -65,7 +172,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Main Info */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 mb-8">
+        <Card className="mb-8">
           <div className="p-6">
             <div className="flex items-start justify-between">
               <div className="flex items-center space-x-4">
@@ -84,9 +191,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                     {metadata.description}
                   </p>
                   <div className="flex items-center space-x-4 mt-3">
-                    <span className={`inline-flex items-center px-3 py-1 rounded-full text-sm font-medium ${getStatusColor(metadata.status)}`}>
-                      {metadata.status}
-                    </span>
+                    <StatusBadge status={metadata.status} />
                     <span className="text-sm text-gray-500 dark:text-gray-400">
                       {getNetworkName(metadata.l1ChainId)}
                     </span>
@@ -122,55 +227,36 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
               </div>
             </div>
           </div>
-        </div>
+        </Card>
 
         {/* Status Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <Card>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">L2 RPC</p>
                 <div className="flex items-center space-x-2 mt-1">
-                  <span>{getStatusIndicator(status.rpcStatus)}</span>
-                  <span className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                    {status.rpcStatus}
-                  </span>
+                  <StatusDisplay status={status.rpcStatus} />
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
 
-                    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <Card>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Block Explorers</p>
                 <div className="flex items-center space-x-2 mt-1">
-                  {(() => {
+                  <StatusDisplay status={(() => {
                     if (!metadata.explorers?.length) {
-                      const statusText = 'Unavailable';
-                      return (
-                        <>
-                          <span>{getStatusIndicator(statusText)}</span>
-                          <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {statusText}
-                          </span>
-                        </>
-                      );
+                      return 'Unavailable';
                     }
 
                     const inactiveCount = metadata.explorers.filter(e => e.status === 'inactive').length;
                     const activeInMetadata = metadata.explorers.filter(e => e.status === 'active');
 
                     if (activeInMetadata.length === 0) {
-                      const statusText = 'Unavailable';
-                      return (
-                        <>
-                          <span>{getStatusIndicator(statusText)}</span>
-                          <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                            {statusText}
-                          </span>
-                        </>
-                      );
+                      return 'Unavailable';
                     }
 
                     let statusText;
@@ -191,15 +277,8 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                       statusText = `${activeInMetadata.length} Available`;
                     }
 
-                    return (
-                      <>
-                        <span>{getStatusIndicator(statusText)}</span>
-                        <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {statusText}
-                        </span>
-                      </>
-                    );
-                  })()}
+                    return statusText;
+                  })()} />
                 </div>
               </div>
               {metadata.explorers?.find(e => e.status === 'active') && (
@@ -216,14 +295,14 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                 </Link>
               )}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <Card>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Bridge</p>
                 <div className="flex items-center space-x-2 mt-1">
-                  {(() => {
+                  <StatusDisplay status={(() => {
                     const activeCount = metadata.bridges?.filter(b => b.status === 'active').length || 0;
                     const totalCount = metadata.bridges?.length || 0;
 
@@ -236,15 +315,8 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                       statusText = `${activeCount}/${totalCount} Available`;
                     }
 
-                    return (
-                      <>
-                        <span>{getStatusIndicator(statusText)}</span>
-                        <span className="text-lg font-semibold text-gray-900 dark:text-white">
-                          {statusText}
-                        </span>
-                      </>
-                    );
-                  })()}
+                    return statusText;
+                  })()} />
                 </div>
               </div>
               {metadata.bridges?.find(b => b.status === 'active') && (
@@ -261,81 +333,73 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                 </Link>
               )}
             </div>
-          </div>
+          </Card>
 
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
+          <Card>
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Staking</p>
                 <div className="flex items-center space-x-2 mt-1">
-                  <span>{getStatusIndicator(status.stakingStatus)}</span>
-                  <span className="text-lg font-semibold text-gray-900 dark:text-white capitalize">
-                    {status.stakingStatus}
-                  </span>
+                  <StatusDisplay status={status.stakingStatus} />
                 </div>
               </div>
             </div>
-          </div>
+          </Card>
         </div>
 
         {/* Technical Details Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
           {/* Network Information */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Network Information
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Rollup Type</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
-                    {metadata.rollupType}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Stack</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {metadata.stack.name} v{metadata.stack.version}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">L1 Chain ID</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {metadata.l1ChainId}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">L2 Chain ID</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {metadata.l2ChainId}
-                  </span>
-                </div>
-                <UrlDisplay
-                  url={metadata.rpcUrl}
-                  label="L2 RPC URL"
-                  copyTooltip="Copy RPC URL"
-                  linkTooltip="Open RPC URL"
-                />
-                {metadata.wsUrl && (
+          <InfoCard
+            title="Network Information"
+            items={[
+              {
+                label: "Rollup Type",
+                value: <span className="capitalize">{metadata.rollupType}</span>
+              },
+              {
+                label: "Stack",
+                value: `${metadata.stack.name} v${metadata.stack.version}`
+              },
+              {
+                label: "L1 Chain ID",
+                value: metadata.l1ChainId
+              },
+              {
+                label: "L2 Chain ID",
+                value: metadata.l2ChainId
+              },
+              {
+                label: "L2 RPC URL",
+                value: (
+                  <UrlDisplay
+                    url={metadata.rpcUrl}
+                    label=""
+                    copyTooltip="Copy RPC URL"
+                    linkTooltip="Open RPC URL"
+                  />
+                )
+              },
+              ...(metadata.wsUrl ? [{
+                label: "L2 WebSocket URL",
+                value: (
                   <UrlDisplay
                     url={metadata.wsUrl}
-                    label="L2 WebSocket URL"
+                    label=""
                     copyTooltip="Copy WebSocket URL"
                     linkTooltip="Open WebSocket URL"
                   />
-                )}
-              </div>
-            </div>
-          </div>
+                )
+              }] : [])
+            ]}
+          />
 
           {/* Network Status */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Network Status
-              </h3>
-              <div className="space-y-3">
+          <Card>
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              Network Status
+            </h3>
+            <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Latest L2 Block</span>
                   <span className="text-sm font-medium text-gray-900 dark:text-white">
@@ -421,375 +485,194 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                     )}
                   </div>
                 </div>
-              </div>
             </div>
-          </div>
+          </Card>
+
+
+          {/* Block Explorers */}
+          <ServiceList
+            title="Block Explorers"
+            services={metadata.explorers || []}
+            emptyMessage="No block explorers available"
+          />
+
+          {/* Bridges */}
+          <ServiceList
+            title="Bridges"
+            services={metadata.bridges || []}
+            emptyMessage="No bridges available"
+          />
 
           {/* Metadata */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Metadata
-                </h3>
-                <Link
-                  href={`https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/${metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia'}/${metadata.l1Contracts.systemConfig.toLowerCase()}.json`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                  title="View metadata file in repository"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                  </svg>
-                </Link>
-              </div>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Created At</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {formatTimestamp(new Date(metadata.createdAt).getTime())}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Last Updated</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {formatTimestamp(new Date(metadata.lastUpdated).getTime())}
-                  </span>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Sequencer Information */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-              <div className="flex items-center justify-between mb-4">
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Sequencer
-                </h3>
-              </div>
-              <div className="space-y-3">
-                                <div className="flex justify-between items-center">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Sequencer Address</span>
-                    {/* Sequencer Verification Status */}
-                    {status.sequencerVerified !== undefined && (
-                      <div>
-                        {status.sequencerVerified === true ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400">
-                            ✅ Verified
-                          </span>
-                        ) : status.sequencerVerificationError ? (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400">
-                            ❓ Unable to verify
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
-                            ⚠️ Differs from on-chain
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-2">
-                    <div className="flex flex-col items-end">
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.sequencer.address.slice(0, 6)}...{metadata.sequencer.address.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => navigator.clipboard.writeText(metadata.sequencer.address)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy Sequencer Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.address)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-
-                    </div>
-                  </div>
-                </div>
-                {metadata.sequencer.batcherAddress && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Batcher Address</span>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-mono text-gray-900 dark:text-white">
-                        {metadata.sequencer.batcherAddress.slice(0, 6)}...{metadata.sequencer.batcherAddress.slice(-4)}
-                      </span>
-                      <button
-                        onClick={() => metadata.sequencer.batcherAddress && navigator.clipboard.writeText(metadata.sequencer.batcherAddress)}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        title="Copy Batcher Address"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </button>
-                      <Link
-                        href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.batcherAddress)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                        title="View on Etherscan"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-                {metadata.sequencer.proposerAddress && (
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Proposer Address</span>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-mono text-gray-900 dark:text-white">
-                        {metadata.sequencer.proposerAddress.slice(0, 6)}...{metadata.sequencer.proposerAddress.slice(-4)}
-                      </span>
-                      <button
-                        onClick={() => metadata.sequencer.proposerAddress && navigator.clipboard.writeText(metadata.sequencer.proposerAddress)}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        title="Copy Proposer Address"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </button>
-                      <Link
-                        href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.proposerAddress)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                        title="View on Etherscan"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </Link>
-                    </div>
-                  </div>
-                )}
-                {metadata.sequencer.aggregatorAddress && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Aggregator Address</span>
-                    <Link
-                      href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.aggregatorAddress)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-mono"
-                    >
-                      {metadata.sequencer.aggregatorAddress.slice(0, 6)}...{metadata.sequencer.aggregatorAddress.slice(-4)}
-                    </Link>
-                  </div>
-                )}
-                {metadata.sequencer.trustedSequencer && (
-                  <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Trusted Sequencer</span>
-                    <Link
-                      href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.trustedSequencer)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-sm text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-mono"
-                    >
-                      {metadata.sequencer.trustedSequencer.slice(0, 6)}...{metadata.sequencer.trustedSequencer.slice(-4)}
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Block Explorers Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Block Explorers
-              </h3>
-              <div className="space-y-3">
-                {metadata.explorers && metadata.explorers.length > 0 ? (
-                  metadata.explorers.map((explorer, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <div className="flex items-center space-x-3">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {explorer.name}
-                          </div>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(explorer.status)}`}>
-                            {explorer.status}
-                          </span>
-                        </div>
-                        {(
-                          <Link
-                            href={explorer.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm flex items-center space-x-1 text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                          </Link>
-                        )}
-                      </div>
-                    ))
-                ) : (
-                  <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                    <p className="text-sm">No block explorers available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Bridges Details */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Bridges
-              </h3>
-              <div className="space-y-3">
-                {metadata.bridges && metadata.bridges.length > 0 ? (
-                  metadata.bridges.map((bridge, index) => (
-                      <div key={index} className="flex justify-between items-center">
-                        <div className="flex items-center space-x-3">
-                          <div className="text-sm font-medium text-gray-900 dark:text-white">
-                            {bridge.name}
-                          </div>
-                          <span className={`inline-flex items-center px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(bridge.status)}`}>
-                            {bridge.status}
-                          </span>
-                        </div>
-                        {(
-                          <Link
-                            href={bridge.url}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-sm flex items-center space-x-1 text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          >
-                            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                            </svg>
-                          </Link>
-                        )}
-                      </div>
-                    ))
-                ) : (
-                  <div className="text-center py-4 text-gray-500 dark:text-gray-400">
-                    <p className="text-sm">No block explorers available</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* Native Token */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                Native Token
-              </h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Symbol</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {metadata.nativeToken.symbol}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Name</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {metadata.nativeToken.name}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Type</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white uppercase">
-                    {metadata.nativeToken.type}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Decimals</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {metadata.nativeToken.decimals}
-                  </span>
-                </div>
-                <AddressDisplay
-                  address={metadata.nativeToken.l1Address}
-                  label="L1 Address"
-                  explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.nativeToken.l1Address)}
-                  copyTooltip="Copy L1 Native Token Address"
-                  linkTooltip="View L1 Native Token on Etherscan"
-                />
-                <AddressDisplay
-                  address={metadata.l2Contracts.nativeToken}
-                  label="L2 Address"
-                  explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.nativeToken)}
-                  copyTooltip="Copy L2 Native Token Address"
-                  linkTooltip="View L2 Native Token on L2 Explorer"
-                />
-              </div>
-            </div>
-          </div>
+          <InfoCard
+            title="Metadata"
+            items={[
+              {
+                label: "Created At",
+                value: formatTimestamp(new Date(metadata.createdAt).getTime())
+              },
+              {
+                label: "Last Updated",
+                value: formatTimestamp(new Date(metadata.lastUpdated).getTime())
+              }
+            ]}
+            headerLink={{
+              url: `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/${metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia'}/${metadata.l1Contracts.systemConfig.toLowerCase()}.json`,
+              tooltip: "View metadata file in repository"
+            }}
+          />
 
           {/* Staking Information */}
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-            <div className="p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <Card>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
                 Staking Information
               </h3>
-              <div className="space-y-3">
+            </div>
+            <div className="space-y-3">
                 <div className="flex justify-between">
                   <span className="text-sm text-gray-600 dark:text-gray-400">Is Candidate</span>
-                  <span className={`text-sm font-medium ${metadata.staking.isCandidate ? 'text-green-600 dark:text-green-400' : 'text-gray-900 dark:text-white'}`}>
-                    {metadata.staking.isCandidate ? 'Yes' : 'No'}
-                  </span>
+                  <div className="flex items-center space-x-2">
+                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                      metadata.staking.isCandidate
+                        ? 'bg-green-100 text-green-800 dark:bg-green-900/20 dark:text-green-400'
+                        : 'bg-gray-100 text-gray-800 dark:bg-gray-900/20 dark:text-gray-400'
+                    }`}>
+                      {metadata.staking.isCandidate ? '✅ Yes' : '❌ No'}
+                    </span>
+                  </div>
                 </div>
+
                 {metadata.staking.candidateStatus && (
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Candidate Status</span>
-                    <span className="text-sm font-medium text-gray-900 dark:text-white capitalize">
+                    <span className={`text-sm font-medium capitalize ${
+                      metadata.staking.candidateStatus === 'active' ? 'text-green-600 dark:text-green-400' :
+                      metadata.staking.candidateStatus === 'pending' ? 'text-yellow-600 dark:text-yellow-400' :
+                      metadata.staking.candidateStatus === 'suspended' || metadata.staking.candidateStatus === 'terminated' ? 'text-red-600 dark:text-red-400' :
+                      'text-gray-600 dark:text-gray-400'
+                    }`}>
                       {metadata.staking.candidateStatus.replace('_', ' ')}
                     </span>
                   </div>
                 )}
+
                 {metadata.staking.candidateRegisteredAt && (
                   <div className="flex justify-between">
                     <span className="text-sm text-gray-600 dark:text-gray-400">Registered At</span>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
-                      {formatDate(metadata.staking.candidateRegisteredAt)}
+                      {formatTimestamp(new Date(metadata.staking.candidateRegisteredAt).getTime())}
                     </span>
                   </div>
                 )}
+
+                {metadata.staking.candidateAddress && (
+                  <>
+                    <AddressDisplay
+                      address={metadata.staking.candidateAddress}
+                      label="Candidate Address"
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.staking.candidateAddress)}
+                      copyTooltip="Copy Candidate Address"
+                      linkTooltip="View on Etherscan"
+                    />
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Candidate Memo</span>
+                      <div className="text-right max-w-xs">
+                        {memoLoading ? (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Loading...</span>
+                        ) : candidateMemo ? (
+                          <span className="text-sm font-medium text-gray-900 dark:text-white break-words">
+                            {candidateMemo}
+                          </span>
+                        ) : (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">No memo available</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">
+                        OperatorManager Contract
+                        <span className="ml-2 text-yellow-500" title="시뇨리지 받는 컨트랙트">💰</span>
+                      </span>
+                      <div className="text-right">
+                        {operatorLoading ? (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">Loading...</span>
+                        ) : operatorAddress && operatorAddress !== 'No operator found' && operatorAddress !== 'Failed to fetch operator' && operatorAddress !== 'Error loading operator' ? (
+                          <AddressDisplay
+                            address={operatorAddress}
+                            label=""
+                            explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, operatorAddress)}
+                            copyTooltip="Copy Operator Address"
+                            linkTooltip="View Operator on Etherscan"
+                          />
+                        ) : (
+                          <span className="text-sm text-gray-500 dark:text-gray-400">{operatorAddress || 'No operator available'}</span>
+                        )}
+                      </div>
+                    </div>
+                    {operatorAddress && operatorAddress !== 'No operator found' && operatorAddress !== 'Failed to fetch operator' && operatorAddress !== 'Error loading operator' && (
+                      <div className="flex justify-between">
+                        <span className="text-sm text-gray-600 dark:text-gray-400">Manager of OperatorManager</span>
+                        <div className="text-right">
+                          {managerLoading ? (
+                            <span className="text-sm text-gray-500 dark:text-gray-400">Loading...</span>
+                          ) : managerAddress && managerAddress !== 'No manager found' && managerAddress !== 'Failed to fetch manager' && managerAddress !== 'Error loading manager' ? (
+                            <AddressDisplay
+                              address={managerAddress}
+                              label=""
+                              explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, managerAddress)}
+                              copyTooltip="Copy Manager Address"
+                              linkTooltip="View Manager on Etherscan"
+                            />
+                          ) : (
+                            <span className="text-sm text-gray-500 dark:text-gray-400">{managerAddress || 'No manager available'}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
+                  </>
+                )}
+
+                {metadata.staking.rollupConfigAddress && (
+                  <AddressDisplay
+                    address={metadata.staking.rollupConfigAddress}
+                    label="Rollup Config Address"
+                    explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.staking.rollupConfigAddress)}
+                    copyTooltip="Copy Rollup Config Address"
+                    linkTooltip="View on Etherscan"
+                  />
+                )}
+
+                {metadata.staking.registrationTxHash && (
+                  <AddressDisplay
+                    address={metadata.staking.registrationTxHash}
+                    label="Registration Tx Hash"
+                    explorerUrl={`${metadata.l1ChainId === 1 ? 'https://etherscan.io' : 'https://sepolia.etherscan.io'}/tx/${metadata.staking.registrationTxHash}`}
+                    copyTooltip="Copy Transaction Hash"
+                    linkTooltip="View on Etherscan"
+                  />
+                )}
+
                 {metadata.staking.stakingServiceName && (
                   <div className="flex justify-between">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">Service Name</span>
+                    <span className="text-sm text-gray-600 dark:text-gray-400">Staking Service</span>
                     <span className="text-sm font-medium text-gray-900 dark:text-white">
                       {metadata.staking.stakingServiceName}
                     </span>
                   </div>
                 )}
-              </div>
             </div>
-          </div>
-
+          </Card>
         </div>
 
         {/* Contract Addresses */}
-        <div className="mt-8 bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700">
-          <div className="p-6">
+                <Card
+          padding="custom"
+          paddingX="md"
+          paddingY="md"
+          hover={true}
+          className="mt-8"
+        >
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Contract Addresses
             </h3>
@@ -1097,94 +980,31 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                     </div>
                   )}
                   {metadata.l1Contracts.superchainConfig && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Superchain Config</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.superchainConfig.slice(0, 6)}...{metadata.l1Contracts.superchainConfig.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.superchainConfig && navigator.clipboard.writeText(metadata.l1Contracts.superchainConfig)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy Superchain Config Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.superchainConfig)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View Superchain Config on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
+                    <AddressDisplay
+                      address={metadata.l1Contracts.superchainConfig}
+                      label="Superchain Config"
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.superchainConfig)}
+                      copyTooltip="Copy Superchain Config Address"
+                      linkTooltip="View Superchain Config on Etherscan"
+                    />
                   )}
                   {metadata.l1Contracts.l1UsdcBridge && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">L1 USDC Bridge</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.l1UsdcBridge.slice(0, 6)}...{metadata.l1Contracts.l1UsdcBridge.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.l1UsdcBridge && navigator.clipboard.writeText(metadata.l1Contracts.l1UsdcBridge)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy L1 USDC Bridge Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1UsdcBridge)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View L1 USDC Bridge on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
+                    <AddressDisplay
+                      address={metadata.l1Contracts.l1UsdcBridge}
+                      label="L1 USDC Bridge"
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1UsdcBridge)}
+                      copyTooltip="Copy L1 USDC Bridge Address"
+                      linkTooltip="View L1 USDC Bridge on Etherscan"
+                    />
                   )}
                   {metadata.l1Contracts.l1Usdc && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">L1 USDC</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.l1Usdc.slice(0, 6)}...{metadata.l1Contracts.l1Usdc.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.l1Usdc && navigator.clipboard.writeText(metadata.l1Contracts.l1Usdc)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy L1 USDC Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1Usdc)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View L1 USDC on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
+                    <AddressDisplay
+                      address={metadata.l1Contracts.l1Usdc}
+                      label="L1 USDC"
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1Usdc)}
+                      copyTooltip="Copy L1 USDC Address"
+                      linkTooltip="View L1 USDC on Etherscan"
+                    />
                   )}
                 </div>
               </div>
@@ -1347,8 +1167,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
                 </div>
               </div>
             </div>
-          </div>
-        </div>
+          </Card>
 
       </div>
     </div>

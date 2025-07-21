@@ -2,10 +2,11 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { RollupMetadata, L2Status } from '@/types/metadata';
 import { RollupDetailView } from '@/components/RollupDetailView';
 import { ErrorMessage } from '@/components/ErrorMessage';
+import { L2Status, RollupMetadata } from '@/types/metadata';
 import { ExplorerStatus } from '@/utils/explorer-checker';
+import { LoadingSpinner } from '@/components/ui/LoadingSpinner';
 
 interface RollupDetailData {
   metadata: RollupMetadata;
@@ -60,10 +61,7 @@ export default function RollupDetailPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tokamak-blue mx-auto"></div>
-          <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Loading rollup details...</p>
-        </div>
+        <LoadingSpinner size="lg" text="Loading rollup details..." />
       </div>
     );
   }

@@ -2,6 +2,8 @@ import { useState, useMemo } from 'react';
 import { L2BasicInfo } from '@/types/metadata';
 import { getNetworkName } from '@/utils/etherscan';
 import { getStatusColor } from '@/utils/ui';
+import { StatusBadge } from './ui/StatusBadge';
+import { LoadingSpinner } from './ui/LoadingSpinner';
 
 interface L2SelectionPanelProps {
   availableL2s: L2BasicInfo[];
@@ -173,8 +175,7 @@ export function L2SelectionPanel({
       <div className="flex-1 overflow-auto p-4">
         {loading ? (
           <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-tokamak-blue"></div>
-            <span className="ml-2 text-sm text-gray-600 dark:text-gray-400">Loading L2s...</span>
+            <LoadingSpinner text="Loading L2s..." />
           </div>
         ) : (
           <div className="space-y-4">
@@ -214,9 +215,7 @@ export function L2SelectionPanel({
                           <div className="font-medium text-sm text-gray-900 dark:text-white truncate">
                             {l2.name}
                           </div>
-                          <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${getStatusColor(l2.status)}`}>
-                            {l2.status}
-                          </span>
+                          <StatusBadge status={l2.status} />
                         </div>
                         <div className="text-xs text-gray-400 dark:text-gray-500 font-mono truncate mb-1">
                           {l2.systemConfigAddress}

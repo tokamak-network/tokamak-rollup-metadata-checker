@@ -1,6 +1,7 @@
 import { L2Status } from '@/types/metadata';
-import { RollupTable } from './RollupTable';
 import { StatsOverview } from './StatsOverview';
+import { RollupTable } from './RollupTable';
+import { LoadingSpinner } from './ui/LoadingSpinner';
 
 interface SelectedL2DashboardProps {
   selectedL2s: string[];
@@ -37,7 +38,7 @@ export function SelectedL2Dashboard({
         {/* 헤더 */}
         <div className="mb-6">
           <div>
-            <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
               Selected L2 Status ({selectedL2s.length})
             </h1>
             <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
@@ -55,11 +56,8 @@ export function SelectedL2Dashboard({
 
         {/* 롤업 상태 카드들 */}
         {loading && rollupStatuses.length === 0 ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="text-center">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-tokamak-blue mx-auto"></div>
-              <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Loading L2 status...</p>
-            </div>
+          <div className="py-12">
+            <LoadingSpinner size="lg" text="Loading L2 status..." className="py-4" />
           </div>
         ) : rollupStatuses.length === 0 ? (
           <div className="text-center py-12">

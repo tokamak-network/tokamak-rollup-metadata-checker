@@ -2,6 +2,8 @@ import { useRouter } from 'next/navigation';
 import { L2Status } from '@/types/metadata';
 import { getNetworkName } from '@/utils/etherscan';
 import { getStatusColor, getStatusIndicator } from '@/utils/ui';
+import { StatusBadge } from './ui/StatusBadge';
+import { StatusDisplay } from './ui/StatusDisplay';
 
 interface RollupTableProps {
   rollups: L2Status[];
@@ -12,7 +14,7 @@ export function RollupTable({ rollups }: RollupTableProps) {
 
   return (
     <>
-      <div className="overflow-hidden shadow-sm ring-1 ring-gray-200 dark:ring-gray-700 rounded-lg">
+      <div className="overflow-x-auto shadow-sm ring-1 ring-gray-200 dark:ring-gray-700 rounded-lg">
         <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
           <thead className="bg-gray-50 dark:bg-gray-800">
             <tr>
@@ -25,9 +27,7 @@ export function RollupTable({ rollups }: RollupTableProps) {
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 Status
               </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
-                Sequencer
-              </th>
+
               <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                 RPC
               </th>
@@ -52,48 +52,41 @@ export function RollupTable({ rollups }: RollupTableProps) {
                       <div className="text-sm font-medium text-gray-900 dark:text-white">
                         {rollup.name}
                       </div>
-                      <div className="text-sm text-gray-500 dark:text-gray-400">
+                      <div className="text-xs text-gray-500 dark:text-gray-400">
                         Chain {rollup.l2ChainId}
                       </div>
                     </div>
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="text-sm text-gray-900 dark:text-white">
+                  <div className="text-xs text-gray-900 dark:text-white">
                     {getNetworkName(rollup.l1ChainId)}
                   </div>
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${getStatusColor(rollup.status)}`}>
-                    {rollup.status}
-                  </span>
+                  <StatusBadge status={rollup.status} />
+                </td>
+
+                <td className="px-6 py-4 whitespace-nowrap">
+                  <StatusDisplay status={rollup.rpcStatus} />
                 </td>
                 <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm">
-                    <span className="mr-2">{getStatusIndicator(rollup.sequencerStatus)}</span>
-                    <span className="text-gray-900 dark:text-white capitalize">
-                      {rollup.sequencerStatus}
-                    </span>
-                  </div>
+                  <StatusDisplay status={rollup.stakingStatus} />
                 </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm">
-                    <span className="mr-2">{getStatusIndicator(rollup.rpcStatus)}</span>
-                    <span className="text-gray-900 dark:text-white capitalize">
-                      {rollup.rpcStatus}
-                    </span>
+                <td className="px-6 py-4 whitespace-nowrap text-xs text-gray-500 dark:text-gray-400">
+                  <div>
+                    <div>{new Date(rollup.lastChecked).toLocaleDateString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric'
+                    })}</div>
+                    <div>{new Date(rollup.lastChecked).toLocaleTimeString('en-US', {
+                      hour: '2-digit',
+                      minute: '2-digit',
+                      hour12: false,
+                      timeZoneName: 'short'
+                    })}</div>
                   </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap">
-                  <div className="flex items-center text-sm">
-                    <span className="mr-2">{getStatusIndicator(rollup.stakingStatus)}</span>
-                    <span className="text-gray-900 dark:text-white capitalize">
-                      {rollup.stakingStatus}
-                    </span>
-                  </div>
-                </td>
-                <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
-                  {new Date(rollup.lastChecked).toLocaleString()}
                 </td>
               </tr>
             ))}
