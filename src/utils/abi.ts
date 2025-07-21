@@ -2,6 +2,7 @@ import { ethers } from 'ethers';
 import { CANDIDATE_ADD_ON_ABI } from './abi/candidate-add-on';
 import { OPERATOR_MANAGER_ABI } from './abi/operator-manager';
 import { ERC20_ABI } from './abi/erc20';
+import { SYSTEM_CONFIG_ABI } from './abi/system-config';
 import { fetchOfficialDeployment } from './official-deployment';
 
 
@@ -13,6 +14,7 @@ export const CONTRACT_ABI_MAP = {
   'candidate-add-on': CANDIDATE_ADD_ON_ABI,
   'operator-manager': OPERATOR_MANAGER_ABI,
   'erc20': ERC20_ABI,
+  'system-config': SYSTEM_CONFIG_ABI,
   'default': CANDIDATE_ADD_ON_ABI
 };
 

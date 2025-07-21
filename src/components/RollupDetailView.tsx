@@ -46,6 +46,8 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
   const [managerLoading, setManagerLoading] = useState(false);
   const [verificationResults, setVerificationResults] = useState<any[]>([]);
   const [verificationLoading, setVerificationLoading] = useState(false);
+  const [onchainSequencer, setOnchainSequencer] = useState<string | null>(null);
+  const [sequencerLoading, setSequencerLoading] = useState(false);
 
         const fetchCandidateMemo = async () => {
     if (!metadata.staking.candidateAddress) return;
@@ -140,6 +142,28 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
       fetchManagerAddress();
     }
   }, [operatorAddress, metadata.l1ChainId]);
+
+  useEffect(() => {
+    async function fetchOnchainSequencer() {
+      if (!metadata.l1Contracts.systemConfig || !metadata.sequencer?.address) return;
+      setSequencerLoading(true);
+      try {
+        const url = `/api/contract-call?address=${metadata.l1Contracts.systemConfig}&chainId=${metadata.l1ChainId}&function=unsafeBlockSigner&contractType=system-config`;
+        const res = await fetch(url);
+        const data = await res.json();
+        setOnchainSequencer(data.result);
+      } catch (e) {
+        setOnchainSequencer(null);
+      } finally {
+        setSequencerLoading(false);
+      }
+    }
+    fetchOnchainSequencer();
+  }, [metadata.l1Contracts.systemConfig, metadata.l1ChainId, metadata.sequencer?.address]);
+
+  const isSequencerMatch = onchainSequencer && metadata.sequencer.address
+    ? onchainSequencer.toLowerCase() === metadata.sequencer.address.toLowerCase()
+    : null;
 
   const verifyL1Contracts = async () => {
     setVerificationLoading(true);
@@ -395,180 +419,97 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
 
         {/* Technical Details Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Network Information */}
-          <InfoCard
-            title="Network Information"
-            items={[
-              {
-                label: "Rollup Type",
-                value: <span className="capitalize">{metadata.rollupType}</span>
-              },
-              {
-                label: "Stack",
-                value: `${metadata.stack.name} v${metadata.stack.version}`
-              },
-              {
-                label: "L1 Chain ID",
-                value: metadata.l1ChainId
-              },
-              {
-                label: "L2 Chain ID",
-                value: metadata.l2ChainId
-              },
-              {
-                label: "L2 RPC URL",
-                value: (
-                  <UrlDisplay
-                    url={metadata.rpcUrl}
-                    label=""
-                    copyTooltip="Copy RPC URL"
-                    linkTooltip="Open RPC URL"
-                  />
-                )
-              },
-              ...(metadata.wsUrl ? [{
-                label: "L2 WebSocket URL",
-                value: (
-                  <UrlDisplay
-                    url={metadata.wsUrl}
-                    label=""
-                    copyTooltip="Copy WebSocket URL"
-                    linkTooltip="Open WebSocket URL"
-                  />
-                )
-              }] : [])
-            ]}
-          />
-
-          {/* Network Status */}
-          <Card>
-            <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              Network Status
-            </h3>
-            <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Latest L2 Block</span>
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">
-                    {status.latestL2Block.toLocaleString()}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Latest L1 Block</span>
-                  <BlockLink
-                    chainId={metadata.l1ChainId}
-                    blockNumber={status.latestL1Block}
-                  />
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">L2 Block Time</span>
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    <span>⚙️ {metadata.networkConfig.blockTime}s</span>
-                    {actualStats && (
-                      actualStats.actualBlockTime && actualStats.actualBlockTime > 0 ? (
-                        <span className="ml-3">
-                          | 🔄 <span className="text-green-600 dark:text-green-400">{actualStats.actualBlockTime}s</span> (actual)
-                        </span>
-                      ) : (
-                        <span className="ml-3 text-red-400 dark:text-red-500">
-                          | ❌ RPC failed
-                        </span>
-                      )
-                    )}
+          {/* Left: Metadata + Sequencer */}
+          <div className="space-y-6">
+            <InfoCard
+              title="Metadata"
+              items={[
+                {
+                  label: "Created At",
+                  value: formatTimestamp(new Date(metadata.createdAt).getTime())
+                },
+                {
+                  label: "Last Updated",
+                  value: formatTimestamp(new Date(metadata.lastUpdated).getTime())
+                }
+              ]}
+              headerLink={{
+                url: `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/${metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia'}/${metadata.l1Contracts.systemConfig.toLowerCase()}.json`,
+                tooltip: "View metadata file in repository"
+              }}
+            />
+            <Card>
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                Sequencer Information
+              </h3>
+              <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-sm text-gray-600 dark:text-gray-400 font-bold">
+                      Sequencer Address
+                      {sequencerLoading && <span className="ml-2 text-gray-400">...</span>}
+                      {isSequencerMatch === true && <span className="ml-2 text-green-600">✅</span>}
+                      {isSequencerMatch === false && <span className="ml-2 text-red-600">❌</span>}
+                    </span>
+                    <AddressDisplay
+                      address={metadata.sequencer?.address || '-'}
+                      label=""
+                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer?.address || '')}
+                      copyTooltip="Copy Sequencer Address"
+                      linkTooltip="View on Etherscan"
+                    />
                   </div>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">L2 Gas Limit</span>
-                  <div className="text-sm font-medium text-gray-900 dark:text-white">
-                    <span>⚙️ {parseInt(metadata.networkConfig.gasLimit).toLocaleString()} gas</span>
-                    {actualStats && (
-                      actualStats.actualGasLimit && actualStats.actualGasLimit > 0 ? (
-                        <span className="ml-3">
-                          | ⛽ <span className="text-blue-600 dark:text-blue-400">{actualStats.actualGasLimit.toLocaleString()} gas</span> (actual)
-                        </span>
-                      ) : (
-                        <span className="ml-3 text-red-400 dark:text-red-500">
-                          | ❌ RPC failed
-                        </span>
-                      )
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Last Proposal</span>
-                  <div className="text-right">
-                    {status.lastProposalTime > 0 ? (
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {formatTimestamp(status.lastProposalTime)}
-                      </span>
-                    ) : (
-                      <div>
-                        <span className="text-sm text-red-500 dark:text-red-400">Failed to fetch</span>
-                        {status.proposalError && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {status.proposalError}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-sm text-gray-600 dark:text-gray-400">Last Batch</span>
-                  <div className="text-right">
-                    {status.lastBatchTime > 0 ? (
-                      <span className="text-sm font-medium text-gray-900 dark:text-white">
-                        {formatTimestamp(status.lastBatchTime)}
-                      </span>
-                    ) : (
-                      <div>
-                        <span className="text-sm text-red-500 dark:text-red-400">Failed to fetch</span>
-                        {status.batchError && (
-                          <div className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                            {status.batchError}
-                          </div>
-                        )}
-                      </div>
-                    )}
-                  </div>
-                </div>
-            </div>
-          </Card>
-
-
-          {/* Block Explorers */}
-          <ServiceList
-            title="Block Explorers"
-            services={metadata.explorers || []}
-            emptyMessage="No block explorers available"
-          />
-
-          {/* Bridges */}
-          <ServiceList
-            title="Bridges"
-            services={metadata.bridges || []}
-            emptyMessage="No bridges available"
-          />
-
-          {/* Metadata */}
-          <InfoCard
-            title="Metadata"
-            items={[
-              {
-                label: "Created At",
-                value: formatTimestamp(new Date(metadata.createdAt).getTime())
-              },
-              {
-                label: "Last Updated",
-                value: formatTimestamp(new Date(metadata.lastUpdated).getTime())
-              }
-            ]}
-            headerLink={{
-              url: `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/${metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia'}/${metadata.l1Contracts.systemConfig.toLowerCase()}.json`,
-              tooltip: "View metadata file in repository"
-            }}
-          />
-
-          {/* Staking Information */}
+                  {metadata.sequencer?.batcherAddress && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Batcher Address</span>
+                      <AddressDisplay
+                        address={metadata.sequencer.batcherAddress}
+                        label=""
+                        explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.batcherAddress)}
+                        copyTooltip="Copy Batcher Address"
+                        linkTooltip="View on Etherscan"
+                      />
+                    </div>
+                  )}
+                  {metadata.sequencer?.proposerAddress && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Proposer Address</span>
+                      <AddressDisplay
+                        address={metadata.sequencer.proposerAddress}
+                        label=""
+                        explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.proposerAddress)}
+                        copyTooltip="Copy Proposer Address"
+                        linkTooltip="View on Etherscan"
+                      />
+                    </div>
+                  )}
+                  {metadata.sequencer?.aggregatorAddress && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Aggregator Address</span>
+                      <AddressDisplay
+                        address={metadata.sequencer.aggregatorAddress}
+                        label=""
+                        explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.aggregatorAddress)}
+                        copyTooltip="Copy Aggregator Address"
+                        linkTooltip="View on Etherscan"
+                      />
+                    </div>
+                  )}
+                  {metadata.sequencer?.trustedSequencer && (
+                    <div className="flex justify-between">
+                      <span className="text-sm text-gray-600 dark:text-gray-400">Trusted Sequencer</span>
+                      <AddressDisplay
+                        address={metadata.sequencer.trustedSequencer}
+                        label=""
+                        explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.sequencer.trustedSequencer)}
+                        copyTooltip="Copy Trusted Sequencer Address"
+                        linkTooltip="View on Etherscan"
+                      />
+                    </div>
+                  )}
+              </div>
+            </Card>
+          </div>
+          {/* Right: Staking Information */}
           <Card>
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
