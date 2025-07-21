@@ -1,0 +1,2 @@
+export const OFFICIAL_BYTECODE_BASE_URL =  'https://raw.githubusercontent.com/tokamak-network/tokamak-thanos/main/packages/tokamak/contracts-bedrock/deployments';
+export const LOCAL_BYTECODE_PATH = '/config/bytecodes/';
