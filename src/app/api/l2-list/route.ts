@@ -21,7 +21,7 @@ export async function GET() {
     for (const network of networks) {
       try {
         const metadata = await fetcher.fetchAllMetadata(network);
-
+        console.log('metadata.length', metadata.length);
         // 메타데이터를 L2BasicInfo로 변환
         const basicInfos = metadata.map(meta => ({
           name: meta.name,

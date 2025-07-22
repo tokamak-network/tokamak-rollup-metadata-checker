@@ -12,71 +12,75 @@ export async function GET(
 ) {
   try {
     const { address } = params;
-
     if (!address) {
       return NextResponse.json(
         { error: 'Address parameter is required' },
         { status: 400 }
       );
     }
+    // 네트워크 정보는 쿼리 파라미터에서, 없으면 sepolia
+    const { searchParams } = new URL(request.url);
+    const network = searchParams.get('network') || 'sepolia';
 
-    console.log(`🔍 Fetching details for L2 with address: ${address}`);
-
-    // Get file list from jsDelivr API
-    const apiResponse = await fetch(`${config.jsDelivrApiUrl}?limit=1000`, {
-      headers: {
-        'Accept': 'application/json',
-      },
-    });
-
-    if (!apiResponse.ok) {
-      throw new Error(`Failed to fetch file list from jsDelivr: ${apiResponse.status}`);
-    }
-
-    const fileList = await apiResponse.json();
-    console.log(`📁 Found ${fileList.files?.length || 0} files in repository`);
-
-        // Filter JSON metadata files
-    const jsonFiles = fileList.files?.filter((file: any) => {
-      const filename = file.name;
-      return filename.endsWith('.json') &&
-             filename !== 'README.md' &&
-             !filename.includes('template');
-    }) || [];
-
-    console.log(`📄 Found ${jsonFiles.length} metadata files to check`);
-
-    // Search through each metadata file to find matching systemConfig address
-    let metadata: RollupMetadata | null = null;
-    const targetAddress = address.toLowerCase();
-
-    for (const file of jsonFiles) {
-      try {
-        const metadataUrl = `${config.metadataRepoUrl}/${file.name}`;
-        const metadataResponse = await fetch(metadataUrl);
-
-        if (!metadataResponse.ok) {
-          console.warn(`⚠️ Failed to fetch ${file.name}: ${metadataResponse.status}`);
-          continue;
-        }
-
-        const fileMetadata: RollupMetadata = await metadataResponse.json();
-
-        // Check if systemConfig address matches (case-insensitive)
-        if (fileMetadata.l1Contracts?.systemConfig?.toLowerCase() === targetAddress) {
-          console.log(`✅ Found matching metadata in file: ${file.name}`);
-          metadata = fileMetadata;
-          break;
-        }
-      } catch (error) {
-        console.warn(`⚠️ Error parsing ${file.name}:`, error);
-        continue;
+    // config.metadataRepoUrl 예시: https://cdn.jsdelivr.net/gh/OWNER/REPO@BRANCH
+    // config.jsDelivrApiUrl 예시: https://data.jsdelivr.com/v1/package/gh/OWNER/REPO@BRANCH/flat
+    // owner/repo/branch 추출
+    let owner = '';
+    let repo = '';
+    let branch = 'main';
+    if (config.metadataRepoUrl.includes('jsdelivr.net/gh/')) {
+      const m = config.metadataRepoUrl.match(/jsdelivr\.net\/gh\/([^\/]+)\/([^@]+)@([^/]+)/);
+      if (m) {
+        owner = m[1];
+        repo = m[2];
+        branch = m[3];
       }
     }
+    if (!owner || !repo) {
+      return NextResponse.json(
+        { error: 'Cannot parse owner/repo from config.metadataRepoUrl' },
+        { status: 500 }
+      );
+    }
+    // 파일 경로
+    const filePath = `data/${network}/${address}.json`;
+    // 1. jsDelivr CDN URL
+    const jsDelivrUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${filePath}`;
+    // 2. raw.githubusercontent.com URL
+    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
 
+    console.log('jsDelivrUrl', jsDelivrUrl);
+    console.log('rawUrl', rawUrl);
+
+    let metadata: RollupMetadata | null = null;
+    let fetchError: any = null;
+    // 1. jsDelivr 시도
+    try {
+      const res = await fetch(jsDelivrUrl);
+      if (res.ok) {
+        metadata = await res.json();
+      } else {
+        fetchError = `jsDelivr: HTTP ${res.status}`;
+      }
+    } catch (e) {
+      fetchError = `jsDelivr: ${e}`;
+    }
+    // 2. 실패 시 raw.githubusercontent.com 시도
+    if (!metadata) {
+      try {
+        const res = await fetch(rawUrl);
+        if (res.ok) {
+          metadata = await res.json();
+        } else {
+          fetchError += ` | raw: HTTP ${res.status}`;
+        }
+      } catch (e) {
+        fetchError += ` | raw: ${e}`;
+      }
+    }
     if (!metadata) {
       return NextResponse.json(
-        { error: 'L2 rollup not found' },
+        { error: 'L2 rollup not found', fetchError },
         { status: 404 }
       );
     }
