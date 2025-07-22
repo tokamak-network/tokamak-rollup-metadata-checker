@@ -1,4 +1,5 @@
-import { CONTRACT_PROXY_TYPE_MAP } from "../utils/abi";
+import { OFFICIAL_BYTECODE_BASE_URL, LOCAL_BYTECODE_PATH } from '../config/constants';
+
 
 // 타입가드: Node.js 환경인지 확인
 function isNode() {
@@ -8,7 +9,7 @@ function isNode() {
 export async function fetchOfficialDeployment(contractName: string, network: 'mainnet' | 'sepolia' = 'mainnet') {
   const proxyTypes = ["Proxy", "ResolvedDelegateProxy", "L1ChugSplashProxy", "L1UsdcBridgeProxy"];
   if (proxyTypes.includes(contractName)) {
-    const fileUrl = `/config/bytecodes/${contractName}.json`;
+    const fileUrl = `${LOCAL_BYTECODE_PATH}${contractName}.json`;
     if (isNode()) {
       // Node.js (테스트, API 서버)에서는 파일 시스템으로 읽기
       const { readFile } = await import("fs/promises");
@@ -23,7 +24,8 @@ export async function fetchOfficialDeployment(contractName: string, network: 'ma
       return await res.json();
     }
   } else {
-    const url = `https://raw.githubusercontent.com/tokamak-network/tokamak-thanos/main/packages/tokamak/contracts-bedrock/deployments/mainnet/${contractName}.json`;
+    let network_dir = network === 'mainnet' ? 'mainnet' : 'thanos-sepolia';
+    const url = `${OFFICIAL_BYTECODE_BASE_URL}/${network_dir}/${contractName}.json`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`Failed to fetch official deployment for ${contractName}`);
     return await res.json();

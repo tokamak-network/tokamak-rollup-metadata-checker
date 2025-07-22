@@ -39,39 +39,48 @@ export const CONTRACT_PROXY_TYPE_MAP = {
 
 export type ProxyType = typeof CONTRACT_PROXY_TYPE_MAP[keyof typeof CONTRACT_PROXY_TYPE_MAP];
 
+// 함수 시그니처 파싱 유틸
+function parseFunctionSignature(signature: string): { name: string; paramTypes: string[] } {
+  const match = signature.match(/^([^(]+)\(([^)]*)\)$/);
+  if (!match) return { name: signature, paramTypes: [] };
+  const name = match[1];
+  const paramTypes = match[2].split(',').map(s => s.trim()).filter(Boolean);
+  return { name, paramTypes };
+}
+
 /**
- * 함수명으로 ABI를 찾습니다.
- * @param functionName 함수명
+ * 함수명 또는 시그니처로 ABI를 찾습니다.
+ * @param functionNameOrSignature 함수명 또는 시그니처 (예: foo(uint256))
  * @param contractType 컨트랙트 타입 (선택사항)
  * @returns 함수 ABI 또는 null
  */
-export function findFunctionABI(functionName: string, contractType?: string): any {
+export function findFunctionABI(functionNameOrSignature: string, contractType?: string): any {
   const abi = contractType ? CONTRACT_ABI_MAP[contractType as keyof typeof CONTRACT_ABI_MAP] : CANDIDATE_ADD_ON_ABI;
-
-  return abi.find((item: any) =>
-    item.type === 'function' && item.name === functionName
-  ) || null;
+  const { name, paramTypes } = parseFunctionSignature(functionNameOrSignature);
+  if (paramTypes.length > 0) {
+    // 시그니처로 정확히 매칭
+    return abi.find((item: any) =>
+      item.type === 'function' &&
+      item.name === name &&
+      item.inputs &&
+      item.inputs.length === paramTypes.length &&
+      item.inputs.every((input: any, i: number) => input.type === paramTypes[i])
+    ) || null;
+  } else {
+    // 함수명만 있을 때(구버전 호환)
+    return abi.find((item: any) =>
+      item.type === 'function' && item.name === name
+    ) || null;
+  }
 }
 
-/**
- * 함수의 파라미터 개수를 확인합니다.
- * @param functionName 함수명
- * @param contractType 컨트랙트 타입 (선택사항)
- * @returns 파라미터 개수
- */
-export function getFunctionParamCount(functionName: string, contractType?: string): number {
-  const functionABI = findFunctionABI(functionName, contractType);
+export function getFunctionParamCount(functionNameOrSignature: string, contractType?: string): number {
+  const functionABI = findFunctionABI(functionNameOrSignature, contractType);
   return functionABI ? functionABI.inputs.length : 0;
 }
 
-/**
- * 함수의 파라미터 타입들을 반환합니다.
- * @param functionName 함수명
- * @param contractType 컨트랙트 타입 (선택사항)
- * @returns 파라미터 타입 배열
- */
-export function getFunctionParamTypes(functionName: string, contractType?: string): string[] {
-  const functionABI = findFunctionABI(functionName, contractType);
+export function getFunctionParamTypes(functionNameOrSignature: string, contractType?: string): string[] {
+  const functionABI = findFunctionABI(functionNameOrSignature, contractType);
   return functionABI ? functionABI.inputs.map((input: any) => input.type) : [];
 }
 
