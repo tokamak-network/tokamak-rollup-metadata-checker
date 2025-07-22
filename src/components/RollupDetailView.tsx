@@ -64,7 +64,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
     setMemoLoading(true);
     try {
       // ethers를 사용하여 컨트랙트의 memo() 함수 호출
-      const url = `/api/contract-call?address=${metadata.staking.candidateAddress}&chainId=${metadata.l1ChainId}&function=memo&contractType=candidate-add-on`
+      const url = `/api/contract-call?address=${metadata.staking.candidateAddress}&chainId=${metadata.l1ChainId}&function=memo()&contractType=candidate-add-on`
       console.log(url)
 
       const response = await fetch(url);
@@ -94,7 +94,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
 
     setOperatorLoading(true);
     try {
-      const response = await fetch(`/api/contract-call?address=${metadata.staking.candidateAddress}&chainId=${metadata.l1ChainId}&function=operator&contractType=candidate-add-on`);
+      const response = await fetch(`/api/contract-call?address=${metadata.staking.candidateAddress}&chainId=${metadata.l1ChainId}&function=operator()&contractType=candidate-add-on`);
 
       if (response.ok) {
         const data = await response.json();
@@ -119,7 +119,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
 
     setManagerLoading(true);
     try {
-      const response = await fetch(`/api/contract-call?address=${operatorAddress}&chainId=${metadata.l1ChainId}&function=manager&contractType=operator-manager`);
+      const response = await fetch(`/api/contract-call?address=${operatorAddress}&chainId=${metadata.l1ChainId}&function=manager()&contractType=operator-manager`);
 
       if (response.ok) {
         const data = await response.json();
@@ -157,7 +157,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
       if (!metadata.l1Contracts.systemConfig || !metadata.sequencer?.address) return;
       setSequencerLoading(true);
       try {
-        const url = `/api/contract-call?address=${metadata.l1Contracts.systemConfig}&chainId=${metadata.l1ChainId}&function=unsafeBlockSigner&contractType=system-config`;
+        const url = `/api/contract-call?address=${metadata.l1Contracts.systemConfig}&chainId=${metadata.l1ChainId}&function=unsafeBlockSigner()&contractType=system-config`;
         const res = await fetch(url);
         const data = await res.json();
         setOnchainSequencer(data.result);
@@ -264,7 +264,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
               <StatusDisplay status={(() => {
                 if (!metadata.explorers?.length) return 'Unavailable';
                 const activeInMetadata = metadata.explorers.filter(e => e.status === 'active');
-                return activeInMetadata.length > 0 ? 'Available' : 'Unavailable';
+                return activeInMetadata.length > 0 ? 'Active' : 'Unavailable';
               })()} />
             </div>
           </Card>
@@ -273,7 +273,7 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
             <div className="flex items-center space-x-2 mt-1">
               <StatusDisplay status={(() => {
                 const activeCount = metadata.bridges?.filter(b => b.status === 'active').length || 0;
-                return activeCount > 0 ? 'Available' : 'Unavailable';
+                return activeCount > 0 ? 'Active' : 'Unavailable';
               })()} />
             </div>
           </Card>

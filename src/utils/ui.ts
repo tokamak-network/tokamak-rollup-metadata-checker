@@ -9,6 +9,7 @@ export function getStatusColor(status: string): string {
   switch (status) {
     case 'active':
     case 'healthy':
+    case 'available':
       return 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-400';
     case 'inactive':
     case 'unhealthy':
@@ -30,7 +31,13 @@ export function getStatusColor(status: string): string {
  * Get status indicator emoji for different status types
  */
 export function getStatusIndicator(status: string): string {
-  if (status === 'active' || status === 'healthy') {
+  if (
+    status === 'active' ||
+    status === 'healthy' ||
+    status === 'available' ||
+    status === 'Available' ||
+    status === 'Active'
+  ) {
     return '🟢';
   } else if (status === 'maintenance' || status === 'candidate') {
     return '🟡';
