@@ -46,7 +46,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function RollupDetailView({ metadata, status, actualStats, explorerStatuses, onRefresh, loading }: RollupDetailViewProps) {
+export function RollupDetailView({ metadata, status, actualStats: initialActualStats, explorerStatuses, onRefresh, loading }: RollupDetailViewProps) {
   const [candidateMemo, setCandidateMemo] = useState<string>('');
   const [memoLoading, setMemoLoading] = useState(false);
   const [operatorAddress, setOperatorAddress] = useState<string>('');
@@ -57,6 +57,9 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
   const [verificationLoading, setVerificationLoading] = useState(false);
   const [onchainSequencer, setOnchainSequencer] = useState<string | null>(null);
   const [sequencerLoading, setSequencerLoading] = useState(false);
+  const [actualStats, setActualStats] = useState<{ actualBlockTime: number; actualGasLimit: number } | undefined>(initialActualStats);
+  const [actualStatsLoading, setActualStatsLoading] = useState(false);
+  const [actualStatsError, setActualStatsError] = useState<string | null>(null);
 
         const fetchCandidateMemo = async () => {
     if (!metadata.staking.candidateAddress) return;
@@ -169,6 +172,35 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
     }
     fetchOnchainSequencer();
   }, [metadata.l1Contracts.systemConfig, metadata.l1ChainId, metadata.sequencer?.address]);
+
+  useEffect(() => {
+    async function fetchActualStats() {
+      if (!metadata.rpcUrl) return;
+      setActualStatsLoading(true);
+      setActualStatsError(null);
+      try {
+        const res = await fetch('/api/rpc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ rpcUrl: metadata.rpcUrl })
+        });
+        const data = await res.json();
+        if (data.success) {
+          setActualStats({
+            actualBlockTime: data.blockTime,
+            actualGasLimit: parseInt(data.gasLimit)
+          });
+        } else {
+          setActualStatsError(data.error || 'Failed to fetch actual stats');
+        }
+      } catch (e) {
+        setActualStatsError(e instanceof Error ? e.message : String(e));
+      } finally {
+        setActualStatsLoading(false);
+      }
+    }
+    fetchActualStats();
+  }, [metadata.rpcUrl]);
 
   const isSequencerMatch = onchainSequencer && metadata.sequencer.address
     ? onchainSequencer.toLowerCase() === metadata.sequencer.address.toLowerCase()
@@ -303,10 +335,28 @@ export function RollupDetailView({ metadata, status, actualStats, explorerStatus
             <div className="space-y-3">
               <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">Latest L2 Block</span><span className="text-sm font-medium text-gray-900 dark:text-white">{status.latestL2Block.toLocaleString()}</span></div>
               <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">Latest L1 Block</span><BlockLink chainId={metadata.l1ChainId} blockNumber={status.latestL1Block} /></div>
-              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">L2 Block Time</span><div className="text-sm font-medium text-gray-900 dark:text-white"><span>⚙️ {metadata.networkConfig.blockTime}s</span>{actualStats && (actualStats.actualBlockTime && actualStats.actualBlockTime > 0 ? (<span className="ml-3">| 🔄 <span className="text-green-600 dark:text-green-400">{actualStats.actualBlockTime}s</span> (actual)</span>) : (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ RPC failed</span>))}</div></div>
-              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">L2 Gas Limit</span><div className="text-sm font-medium text-gray-900 dark:text-white"><span>⚙️ {parseInt(metadata.networkConfig.gasLimit).toLocaleString()} gas</span>{actualStats && (actualStats.actualGasLimit && actualStats.actualGasLimit > 0 ? (<span className="ml-3">| ⛽ <span className="text-blue-600 dark:text-blue-400">{actualStats.actualGasLimit.toLocaleString()} gas</span> (actual)</span>) : (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ RPC failed</span>))}</div></div>
-              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">Last Proposal</span><div className="text-right">{status.lastProposalTime > 0 ? (<span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(status.lastProposalTime)}</span>) : (<div><span className="text-sm text-red-500 dark:text-red-400">Failed to fetch</span>{status.proposalError && (<div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{status.proposalError}</div>)}</div>)}</div></div>
-              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">Last Batch</span><div className="text-right">{status.lastBatchTime > 0 ? (<span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(status.lastBatchTime)}</span>) : (<div><span className="text-sm text-red-500 dark:text-red-400">Failed to fetch</span>{status.batchError && (<div className="text-xs text-gray-500 dark:text-gray-400 mt-1">{status.batchError}</div>)}</div>)}</div></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">L2 Block Time</span><div className="text-sm font-medium text-gray-900 dark:text-white"><span>⚙️ {metadata.networkConfig.blockTime}s</span>{actualStatsLoading ? (<span className="ml-3 text-gray-400">| Loading...</span>) : actualStatsError ? (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ {actualStatsError}</span>) : actualStats && (actualStats.actualBlockTime && actualStats.actualBlockTime > 0 ? (<span className="ml-3">| 🔄 <span className="text-green-600 dark:text-green-400">{actualStats.actualBlockTime}s</span> (actual)</span>) : (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ RPC failed</span>))}</div></div>
+              <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">L2 Gas Limit</span><div className="text-sm font-medium text-gray-900 dark:text-white"><span>⚙️ {parseInt(metadata.networkConfig.gasLimit).toLocaleString()} gas</span>{actualStatsLoading ? (<span className="ml-3 text-gray-400">| Loading...</span>) : actualStatsError ? (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ {actualStatsError}</span>) : actualStats && (actualStats.actualGasLimit && actualStats.actualGasLimit > 0 ? (<span className="ml-3">| ⛽ <span className="text-blue-600 dark:text-blue-400">{actualStats.actualGasLimit.toLocaleString()} gas</span> (actual)</span>) : (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ RPC failed</span>))}</div></div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">Last Proposal</span>
+                <div className="text-right">{status.lastProposalTime > 0 ? (
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(status.lastProposalTime)}</span>
+                ) : (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Not yet supported</span>
+                )}</div>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">Last Batch</span>
+                <div className="text-right">{status.lastBatchTime > 0 ? (
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(status.lastBatchTime)}</span>
+                ) : (
+                  <span className="text-sm text-gray-500 dark:text-gray-400">Not yet supported</span>
+                )}</div>
+              </div>
+            </div>
+            <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
+              <div><b>Last Proposal:</b> The timestamp of the most recent L2 → L1 state root submission.<br/>This feature is not yet supported. Will be available in a future update.</div>
+              <div><b>Last Batch:</b> The timestamp of the most recent L2 → L1 transaction batch submission.<br/>This feature is not yet supported. Will be available in a future update.</div>
             </div>
           </Card>
         </div>
