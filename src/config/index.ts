@@ -11,6 +11,7 @@ export interface AppConfig {
   checkInterval: number;
   outputFormat: 'json' | 'table' | 'csv';
   logLevel: 'debug' | 'info' | 'warn' | 'error';
+  l2BytecodeRepoUrl: string; // L2 컨트랙트 바이트코드 저장소 URL
 }
 
 export const config: AppConfig = {
@@ -23,7 +24,8 @@ export const config: AppConfig = {
   supportedNetworks: (process.env.SUPPORTED_NETWORKS || 'mainnet,sepolia').split(','),
   checkInterval: parseInt(process.env.CHECK_INTERVAL || '60000'), // 1분
   outputFormat: (process.env.OUTPUT_FORMAT as 'json' | 'table' | 'csv') || 'table',
-  logLevel: (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info'
+  logLevel: (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info',
+  l2BytecodeRepoUrl: process.env.L2_BYTECODE_REPO_URL || 'https://github.com/tokamak-network/tokamak-thanos/tree/feat/util-extract-onchain-bytecode/packages/tokamak/contracts-bedrock/bytecode/l2'
 };
 
 // L1 컨트랙트 호출이 필요한 경우 아래 설정들을 다시 추가
