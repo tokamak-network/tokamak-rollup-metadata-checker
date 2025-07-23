@@ -205,6 +205,7 @@ export async function getEstimatedTimestamps(
     };
 
   } catch (error) {
+    
     console.error('❌ Error estimating timestamps:', error);
     return {
       lastProposalTime: 0,
