@@ -39,7 +39,7 @@ export function L2SelectionPanel({
       const networkMatch = networkFilter === 'all' || l2.l1ChainId.toString() === networkFilter;
       return searchMatch && statusMatch && networkMatch;
     });
-
+    console.log('filtered', filtered);
     // 네트워크별로 그룹화
     const grouped = filtered.reduce((acc, l2) => {
       const networkKey = `${l2.l1ChainId}-${getNetworkName(l2.l1ChainId)}`;

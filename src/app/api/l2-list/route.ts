@@ -15,6 +15,7 @@ export async function GET() {
       console.warn('Failed to fetch available networks, using default:', error);
       networks = ['sepolia']; // 기본값으로 sepolia만 사용
     }
+    console.log('networks', networks);
 
     const l2BasicInfoList: L2BasicInfo[] = [];
 
@@ -36,7 +37,7 @@ export async function GET() {
 
         l2BasicInfoList.push(...basicInfos);
       } catch (error) {
-        console.error(`Failed to fetch metadata for network ${network}:`, error);
+        console.error(`2 Failed to fetch metadata for network ${network}:`, error);
       }
     }
 

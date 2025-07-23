@@ -62,18 +62,23 @@ export function isValidRpcUrl(url: string): boolean {
       'sepolia.gateway.tenderly.co'
     ];
 
+
+
     // 유효하지 않은 도메인이 포함되어 있으면 false
     if (invalidDomains.some(domain => hostname.includes(domain))) {
+      console.log('invalidDomains', invalidDomains);
       return false;
     }
 
     // 유효한 RPC 도메인이 포함되어 있으면 true
-    if (validRpcDomains.some(domain => hostname.includes(domain))) {
-      return true;
-    }
+    // if (validRpcDomains.some(domain => hostname.includes(domain))) {
+    //   console.log('validRpcDomains', validRpcDomains);
+    //   return true;
+    // }
 
     // 그 외의 경우는 더 보수적으로 처리 (개발/테스트 환경일 가능성)
-    return false;
+    // return false;
+    return true;
   } catch {
     return false;
   }

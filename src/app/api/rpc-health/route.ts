@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const { rpcUrl } = await request.json();
     if (!rpcUrl) {
-      return NextResponse.json({ success: false, error: 'rpcUrl is required' }, { status: 400 });
+      return NextResponse.json({ healthy: false, error: 'rpcUrl is required' }, { status: 400 });
     }
     const provider = new ethers.JsonRpcProvider(rpcUrl);
     let blockNumber, block, gasLimit, blockTime;
@@ -15,14 +15,14 @@ export async function POST(request: NextRequest) {
       gasLimit = block?.gasLimit?.toString();
       blockTime = block?.timestamp;
     } catch (e) {
-      return NextResponse.json({ success: false, error: 'Failed to fetch block info: ' + (e instanceof Error ? e.message : e) });
+      return NextResponse.json({ healthy: false, error: 'Failed to fetch block info: ' + (e instanceof Error ? e.message : e) });
     }
     if (blockNumber && gasLimit && blockTime && gasLimit !== '0' && blockTime !== 0) {
-      return NextResponse.json({ success: true, blockTime, gasLimit });
+      return NextResponse.json({ healthy: true });
     } else {
-      return NextResponse.json({ success: false, error: 'Missing or invalid blockTime or gasLimit' });
+      return NextResponse.json({ healthy: false, error: 'Missing or invalid blockTime or gasLimit' });
     }
   } catch (error) {
-    return NextResponse.json({ success: false, error: error instanceof Error ? error.message : String(error) });
+    return NextResponse.json({ healthy: false, error: error instanceof Error ? error.message : String(error) });
   }
 }

@@ -173,24 +173,11 @@ export interface L2Status {
   systemConfigAddress: string;
   rollupType: 'optimistic' | 'zk' | 'sovereign';
   status: 'active' | 'inactive' | 'maintenance' | 'deprecated' | 'shutdown';
+  stakingStatus: 'candidate' | 'not_candidate' | 'unknown';
   isActive: boolean;
   latestL2Block: number;
   latestL1Block: number;
-  lastProposalTime: number;
-  lastBatchTime: number;
-  proposalError?: string;
-  batchError?: string;
-  sequencerStatus: 'active' | 'inactive' | 'unknown';
-  sequencerVerified?: boolean;
-  sequencerVerificationError?: string;
-  actualSequencerAddress?: string;
-  proposerStatus: 'active' | 'inactive' | 'unknown';
-  withdrawalDelayStatus: 'normal' | 'delayed' | 'unknown';
-  systemConfigStatus: 'active' | 'paused' | 'unknown';
   rpcStatus: 'healthy' | 'unhealthy' | 'unknown';
-  explorerStatus: 'healthy' | 'unhealthy' | 'unknown';
-  bridgeStatus: 'healthy' | 'unhealthy' | 'unavailable' | 'unknown';
-  stakingStatus: 'candidate' | 'not_candidate' | 'unknown';
   lastChecked: Date;
   errors: string[];
 }
