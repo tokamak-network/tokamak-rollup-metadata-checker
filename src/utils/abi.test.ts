@@ -1,10 +1,10 @@
-import { verifyProxyAndImplementation } from './abi';
+import { verifyL1ContractBytecode } from './abi';
 
 describe('verifyProxyAndImplementation', () => {
 //   it('should verify SystemConfig contract on mainnet', async () => {
 //     // 실제 RPC와 GitHub fetch를 사용하므로 네트워크 환경 필요
 //     const rpcUrl = process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com';
-//     const result = await verifyProxyAndImplementation('SystemConfig', 'mainnet', rpcUrl);
+//     const result = await verifyL1ContractBytecode('SystemConfig', 'mainnet', rpcUrl);
 
 //     expect(result.contractName).toBe('SystemConfig');
 //     expect(result.proxy).toBeDefined();
@@ -19,7 +19,7 @@ describe('verifyProxyAndImplementation', () => {
     //     const rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
     //     const contractAddress = '0xbCa49844a2982C5E87CB3F813A4F4E94e46D44F9'; // 제공받은 주소
 
-    //     const result = await verifyProxyAndImplementation('SystemConfig', 'sepolia', rpcUrl, contractAddress);
+    //     const result = await verifyL1ContractBytecode('SystemConfig', 'sepolia', rpcUrl, contractAddress);
     //     // console.log('Contract name:', result.contractName);
     //     // console.log('Address:', result.address);
     //     // console.log('Is proxy:', result.isProxy);
@@ -41,7 +41,7 @@ describe('verifyProxyAndImplementation', () => {
         const rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
         const contractAddress = '0xef10be662275c39bceea5677e4085ab1758900e1'; // 제공받은 주소
 
-        const result = await verifyProxyAndImplementation('L1StandardBridge', 'sepolia', rpcUrl, contractAddress);
+        const result = await verifyL1ContractBytecode('L1StandardBridge', 'sepolia', rpcUrl, contractAddress);
          console.log('Contract name:', result.contractName);
         console.log('Address:', result.address);
         console.log('Is proxy:', result.isProxy);
@@ -65,7 +65,7 @@ describe('verifyProxyAndImplementation', () => {
 //     const contractAddress = '0x2D7465e9a9f8b05dfF6622828aC572eB76D473DF'; // 제공받은 주소
 
 //     await expect(
-//       verifyProxyAndImplementation('L1CrossDomainMessenger', 'sepolia', rpcUrl, contractAddress)
+//       verifyL1ContractBytecode('L1CrossDomainMessenger', 'sepolia', rpcUrl, contractAddress)
 //     ).rejects.toThrow('L1CrossDomainMessenger is not supported yet. Please use a different contract.');
 //   }, 15000); // 타임아웃 15초로 증가
 
@@ -78,7 +78,7 @@ describe('verifyProxyAndImplementation', () => {
 
 //     // 이 주소가 실제로 프록시가 아니라면 다른 테스트용 주소 사용
 //     try {
-//       const result = await verifyProxyAndImplementation('L1CrossDomainMessenger', 'sepolia', rpcUrl, contractAddress);
+//       const result = await verifyL1ContractBytecode('L1CrossDomainMessenger', 'sepolia', rpcUrl, contractAddress);
 
 //       expect(result.contractName).toBe('L1CrossDomainMessenger');
 //       expect(result.contractType).toBe('proxy');
@@ -102,14 +102,14 @@ describe('verifyProxyAndImplementation', () => {
 //   it('should handle non-existent contract gracefully', async () => {
 //     const rpcUrl = process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com';
 //     await expect(
-//       verifyProxyAndImplementation('NonExistentContract', 'mainnet', rpcUrl, '0x1234567890123456789012345678901234567890')
+//       verifyL1ContractBytecode('NonExistentContract', 'mainnet', rpcUrl, '0x1234567890123456789012345678901234567890')
 //     ).rejects.toThrow();
 //   }, 10000); // 타임아웃 10초로 증가
 
 //   it('should handle unknown contract in proxy type map', async () => {
 //     const rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
 //     await expect(
-//       verifyProxyAndImplementation('UnknownContract', 'sepolia', rpcUrl, '0x1234567890123456789012345678901234567890')
+//       verifyL1ContractBytecode('UnknownContract', 'sepolia', rpcUrl, '0x1234567890123456789012345678901234567890')
 //     ).rejects.toThrow('Unknown contract: UnknownContract. Please add it to CONTRACT_PROXY_TYPE_MAP.');
 //   }, 10000);
 
@@ -119,7 +119,7 @@ describe('verifyProxyAndImplementation', () => {
 //     const nonProxyAddress = '0x742d35Cc6634C0532925a3b8D4C9db96C4b4d8b6';
 
 //     await expect(
-//       verifyProxyAndImplementation('SystemConfig', 'sepolia', rpcUrl, nonProxyAddress)
+//       verifyL1ContractBytecode('SystemConfig', 'sepolia', rpcUrl, nonProxyAddress)
 //     ).rejects.toThrow('is not a proxy contract');
 //   }, 10000);
 
@@ -129,7 +129,7 @@ describe('verifyProxyAndImplementation', () => {
 //     const proxyWithoutImplAddress = '0x0000000000000000000000000000000000000000';
 
 //     await expect(
-//       verifyProxyAndImplementation('SystemConfig', 'sepolia', rpcUrl, proxyWithoutImplAddress)
+//       verifyL1ContractBytecode('SystemConfig', 'sepolia', rpcUrl, proxyWithoutImplAddress)
 //     ).rejects.toThrow('has no implementation address');
 //   }, 10000);
 
@@ -137,7 +137,7 @@ describe('verifyProxyAndImplementation', () => {
 //     const invalidRpcUrl = 'https://invalid-rpc-url.com';
 
 //     await expect(
-//       verifyProxyAndImplementation('SystemConfig', 'sepolia', invalidRpcUrl, '0xbCa49844a2982C5E87CB3F813A4F4E94e46D44F9')
+//       verifyL1ContractBytecode('SystemConfig', 'sepolia', invalidRpcUrl, '0xbCa49844a2982C5E87CB3F813A4F4E94e46D44F9')
 //     ).rejects.toThrow();
 //   }, 15000);
 
@@ -145,7 +145,7 @@ describe('verifyProxyAndImplementation', () => {
 //     const slowRpcUrl = 'https://very-slow-rpc.example.com';
 
 //     await expect(
-//       verifyProxyAndImplementation('SystemConfig', 'sepolia', slowRpcUrl, '0xbCa49844a2982C5E87CB3F813A4F4E94e46D44F9')
+//       verifyL1ContractBytecode('SystemConfig', 'sepolia', slowRpcUrl, '0xbCa49844a2982C5E87CB3F813A4F4E94e46D44F9')
 //     ).rejects.toThrow();
 //   }, 5000); // 짧은 타임아웃으로 빠른 실패 테스트
 // });

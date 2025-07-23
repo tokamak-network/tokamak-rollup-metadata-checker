@@ -5,7 +5,7 @@ import { ERC20_ABI } from './abi/erc20';
 import { SYSTEM_CONFIG_ABI } from './abi/system-config';
 import { fetchOfficialDeployment } from './official-deployment';
 
-
+import { CONTRACT_PROXY_TYPE_MAP } from '../config/index';
 
 /**
  * 컨트랙트별 ABI 매핑
@@ -17,25 +17,6 @@ export const CONTRACT_ABI_MAP = {
   'system-config': SYSTEM_CONFIG_ABI,
   'default': CANDIDATE_ADD_ON_ABI
 };
-
-/**
- * 컨트랙트별 프록시 타입 매핑
- */
-export const CONTRACT_PROXY_TYPE_MAP = {
-  'SystemConfig': 'Proxy',
-  'OptimismPortal': 'Proxy',
-  'L1StandardBridge': 'L1ChugSplashProxy',
-  'L1CrossDomainMessenger': 'ResolvedDelegateProxy',
-  'OptimismMintableERC20FactoryProxy': 'Proxy',
-  'L2OutputOracle': 'Proxy',
-  'L1ERC721Bridge': 'Proxy',
-  'L1UsdcBridge': 'L1UsdcBridgeProxy',
-  'DisputeGameFactory': 'Proxy',
-  'DisputeGame': 'Proxy',
-  'DelayedWETH': 'Proxy',
-  'PermissionedDelayedWETH': 'Proxy',
-  'AnchorStateRegistry': 'Proxy',
-} as const;
 
 export type ProxyType = typeof CONTRACT_PROXY_TYPE_MAP[keyof typeof CONTRACT_PROXY_TYPE_MAP];
 
@@ -348,7 +329,7 @@ export async function analyzeContractType(address: string, rpcUrl: string): Prom
 
 
 
-export async function verifyProxyAndImplementation(
+export async function verifyL1ContractBytecode(
   contractName: string,
   network: 'mainnet' | 'sepolia',
   rpcUrl: string,

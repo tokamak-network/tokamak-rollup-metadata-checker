@@ -49,9 +49,6 @@ export async function GET(
     // 2. raw.githubusercontent.com URL
     const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
 
-    console.log('jsDelivrUrl', jsDelivrUrl);
-    console.log('rawUrl', rawUrl);
-
     let metadata: RollupMetadata | null = null;
     let fetchError: any = null;
     // 1. jsDelivr 시도

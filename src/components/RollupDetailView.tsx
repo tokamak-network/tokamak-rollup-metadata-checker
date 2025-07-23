@@ -15,8 +15,8 @@ import { Card } from './ui/Card';
 import { ServiceList } from './ui/ServiceList';
 import { InfoCard } from './ui/InfoCard';
 import { ContractAddressGrid } from './ui/ContractAddressGrid';
-import { ContractVerificationCard } from './ui/ContractVerificationCard';
-import { verifyProxyAndImplementation } from '@/utils/abi';
+// import { verifyL1ContractBytecode } from '@/utils/abi';
+import { LoadingSpinner } from './ui/LoadingSpinner';
 
 interface RollupDetailViewProps {
   metadata: RollupMetadata;
@@ -60,6 +60,8 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
   const [actualStats, setActualStats] = useState<{ actualBlockTime: number; actualGasLimit: number } | undefined>(initialActualStats);
   const [actualStatsLoading, setActualStatsLoading] = useState(false);
   const [actualStatsError, setActualStatsError] = useState<string | null>(null);
+  const [l2VerifyResults, setL2VerifyResults] = useState<{ [name: string]: { result: any; loading: boolean; error: string | null } }>({});
+  const [l1VerifyResults, setL1VerifyResults] = useState<{ [name: string]: { result: any; loading: boolean; error: string | null } }>({});
 
         const fetchCandidateMemo = async () => {
     if (!metadata.staking.candidateAddress) return;
@@ -202,43 +204,90 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
     fetchActualStats();
   }, [metadata.rpcUrl]);
 
+  useEffect(() => {
+    let cancelled = false;
+    async function verifyAllL2Contracts() {
+      const entries = Object.entries(metadata.l2Contracts).filter(([_, address]) => !!address);
+      for (const [name, address] of entries) {
+        if (cancelled) break;
+        setL2VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: true, error: null } }));
+        try {
+          // Capitalize first letter of contract name
+          const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
+          const res = await fetch('/api/l2-contract-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name: capitalized, address, l2ChainId: metadata.l2ChainId, rpcUrl: metadata.rpcUrl, chainId: metadata.l2ChainId }),
+          });
+          const data = await res.json();
+          if (data.error) {
+            setL2VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: data.error } }));
+          } else {
+            setL2VerifyResults(prev => ({ ...prev, [name]: { result: data, loading: false, error: null } }));
+          }
+        } catch (e) {
+          setL2VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: e instanceof Error ? e.message : String(e) } }));
+        }
+      }
+    }
+    verifyAllL2Contracts();
+    return () => { cancelled = true; };
+  }, [metadata.l2Contracts, metadata.l2ChainId, metadata.rpcUrl]);
+
+  useEffect(() => {
+    let cancelled = false;
+    async function verifyAllL1Contracts() {
+      const contracts = L1_CONTRACTS.map(c => ({
+        name: c.name,
+        address: metadata.l1Contracts[c.key],
+      })).filter(c => !!c.address);
+      if (contracts.length === 0) return;
+      setVerificationLoading(true);
+      setL1VerifyResults({});
+      try {
+        const network = metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia';
+        const rpcUrl = metadata.l1ChainId === 1
+          ? process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com'
+          : process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/demo';
+        const res = await fetch('/api/l1-contract-verification', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            contracts: contracts.map(c => ({ name: c.name, address: c.address })),
+            network,
+            rpcUrl,
+          }),
+        });
+        const data = await res.json();
+        if (data && Array.isArray(data.results)) {
+          const resultsMap: { [name: string]: { result: any; loading: boolean; error: string | null } } = {};
+          for (const r of data.results) {
+            if (r.error) {
+              resultsMap[r.contractName || r.contract || 'unknown'] = { result: null, loading: false, error: r.error };
+            } else {
+              resultsMap[r.contractName || r.contract] = { result: r, loading: false, error: null };
+            }
+          }
+          if (!cancelled) setL1VerifyResults(resultsMap);
+        }
+      } catch (e) {
+        // 전체 실패 시 모든 컨트랙트에 에러 표시
+        const errMap: { [name: string]: { result: null, loading: false, error: string } } = {};
+        for (const c of contracts) {
+          errMap[c.name] = { result: null, loading: false, error: e instanceof Error ? e.message : String(e) };
+        }
+        if (!cancelled) setL1VerifyResults(errMap);
+      } finally {
+        setVerificationLoading(false);
+      }
+    }
+    verifyAllL1Contracts();
+    return () => { cancelled = true; };
+  }, [metadata.l1Contracts, metadata.l1ChainId]);
+
   const isSequencerMatch = onchainSequencer && metadata.sequencer.address
     ? onchainSequencer.toLowerCase() === metadata.sequencer.address.toLowerCase()
     : null;
-
-  const verifyL1Contracts = async () => {
-    setVerificationLoading(true);
-    try {
-      const results: any[] = [];
-      const network = metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia';
-      const rpcUrl = metadata.l1ChainId === 1
-        ? process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com'
-        : process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/demo';
-
-      for (const contract of L1_CONTRACTS) {
-        const address = metadata.l1Contracts[contract.key] as string | undefined;
-        if (!address) continue;
-        try {
-          const result = await verifyProxyAndImplementation(contract.name, network, rpcUrl, address);
-          results.push(result);
-        } catch (err) {
-          results.push({ contractName: contract.name, error: err instanceof Error ? err.message : String(err) });
-        }
-      }
-      setVerificationResults(results);
-    } catch (error) {
-      setVerificationResults([]);
-    } finally {
-      setVerificationLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (metadata.l1Contracts) {
-      verifyL1Contracts();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [metadata.l1Contracts]);
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleDateString('en-US', {
@@ -258,6 +307,58 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
       second: '2-digit',
       hour12: true
     });
+  };
+
+  // Add handler for single L1 contract verification
+  const handleL1Verify = async (name: string, address: string) => {
+    setL1VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: true, error: null } }));
+    try {
+      const network = metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia';
+      const rpcUrl = metadata.l1ChainId === 1
+        ? process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com'
+        : process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/demo';
+      const res = await fetch('/api/l1-contract-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contracts: [{ name, address }],
+          network,
+          rpcUrl,
+        }),
+      });
+      const data = await res.json();
+      if (data && Array.isArray(data.results) && data.results[0]) {
+        const r = data.results[0];
+        if (r.error) {
+          setL1VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: r.error } }));
+        } else {
+          setL1VerifyResults(prev => ({ ...prev, [name]: { result: r, loading: false, error: null } }));
+        }
+      }
+    } catch (e) {
+      setL1VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: e instanceof Error ? e.message : String(e) } }));
+    }
+  };
+
+  // Add handler for single L2 contract verification
+  const handleL2Verify = async (name: string, address: string) => {
+    setL2VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: true, error: null } }));
+    try {
+      const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
+      const res = await fetch('/api/l2-contract-verification', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: capitalized, address, l2ChainId: metadata.l2ChainId, rpcUrl: metadata.rpcUrl, chainId: metadata.l2ChainId }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setL2VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: data.error } }));
+      } else {
+        setL2VerifyResults(prev => ({ ...prev, [name]: { result: data, loading: false, error: null } }));
+      }
+    } catch (e) {
+      setL2VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: e instanceof Error ? e.message : String(e) } }));
+    }
   };
 
   return (
@@ -638,17 +739,8 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
           </Card>
         </div>
 
-        {/* Contract Verification */}
-        <div className="mt-8">
-          <ContractVerificationCard
-            results={verificationResults}
-            loading={verificationLoading}
-            onRefresh={verifyL1Contracts}
-          />
-        </div>
-
         {/* Contract Addresses */}
-                <Card
+        <Card
           padding="custom"
           paddingX="md"
           paddingY="md"
@@ -658,499 +750,154 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
             <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
               Contract Addresses
             </h3>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* L1 Contracts */}
+            {/* L1 Contracts Card */}
+            <Card className="mb-8">
+              <h4 className="font-medium text-gray-900 dark:text-white mb-3">L1 Contracts</h4>
               <div>
-                <h4 className="font-medium text-gray-900 dark:text-white mb-3">L1 Contracts</h4>
-                <div className="space-y-2">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-600 dark:text-gray-400">System Config</span>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-sm font-mono text-gray-900 dark:text-white">
-                        {metadata.l1Contracts.systemConfig.slice(0, 6)}...{metadata.l1Contracts.systemConfig.slice(-4)}
-                      </span>
-                      <button
-                        onClick={() => navigator.clipboard.writeText(metadata.l1Contracts.systemConfig)}
-                        className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                        title="Copy System Config Address"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                        </svg>
-                      </button>
-                      <Link
-                        href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.systemConfig)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                        title="View System Config on Etherscan"
-                      >
-                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                        </svg>
-                      </Link>
-                    </div>
-                  </div>
-                  {metadata.l1Contracts.optimismPortal && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Optimism Portal</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.optimismPortal.slice(0, 6)}...{metadata.l1Contracts.optimismPortal.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.optimismPortal && navigator.clipboard.writeText(metadata.l1Contracts.optimismPortal)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy Optimism Portal Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.optimismPortal)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View Optimism Portal on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.l1StandardBridge && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">L1 Standard Bridge</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.l1StandardBridge.slice(0, 6)}...{metadata.l1Contracts.l1StandardBridge.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.l1StandardBridge && navigator.clipboard.writeText(metadata.l1Contracts.l1StandardBridge)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy L1 Standard Bridge Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1StandardBridge)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View L1 Standard Bridge on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.l2OutputOracle && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">L2 Output Oracle</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.l2OutputOracle.slice(0, 6)}...{metadata.l1Contracts.l2OutputOracle.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.l2OutputOracle && navigator.clipboard.writeText(metadata.l1Contracts.l2OutputOracle)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy L2 Output Oracle Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l2OutputOracle)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View L2 Output Oracle on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.disputeGameFactory && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Dispute Game Factory</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.disputeGameFactory.slice(0, 6)}...{metadata.l1Contracts.disputeGameFactory.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.disputeGameFactory && navigator.clipboard.writeText(metadata.l1Contracts.disputeGameFactory)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy Dispute Game Factory Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.disputeGameFactory)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View Dispute Game Factory on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.l1CrossDomainMessenger && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">L1 Cross Domain Messenger</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.l1CrossDomainMessenger.slice(0, 6)}...{metadata.l1Contracts.l1CrossDomainMessenger.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.l1CrossDomainMessenger && navigator.clipboard.writeText(metadata.l1Contracts.l1CrossDomainMessenger)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy L1 Cross Domain Messenger Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1CrossDomainMessenger)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View L1 Cross Domain Messenger on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.l1ERC721Bridge && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">L1 ERC721 Bridge</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.l1ERC721Bridge.slice(0, 6)}...{metadata.l1Contracts.l1ERC721Bridge.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.l1ERC721Bridge && navigator.clipboard.writeText(metadata.l1Contracts.l1ERC721Bridge)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy L1 ERC721 Bridge Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1ERC721Bridge)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View L1 ERC721 Bridge on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.addressManager && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Address Manager</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.addressManager.slice(0, 6)}...{metadata.l1Contracts.addressManager.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.addressManager && navigator.clipboard.writeText(metadata.l1Contracts.addressManager)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy Address Manager Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.addressManager)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View Address Manager on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.optimismMintableERC20Factory && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Optimism Mintable ERC20 Factory</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.optimismMintableERC20Factory.slice(0, 6)}...{metadata.l1Contracts.optimismMintableERC20Factory.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.optimismMintableERC20Factory && navigator.clipboard.writeText(metadata.l1Contracts.optimismMintableERC20Factory)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy Optimism Mintable ERC20 Factory Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.optimismMintableERC20Factory)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View Optimism Mintable ERC20 Factory on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.optimismMintableERC721Factory && (
-                    <div className="flex justify-between items-center">
-                      <span className="text-sm text-gray-600 dark:text-gray-400">Optimism Mintable ERC721 Factory</span>
-                      <div className="flex items-center space-x-2">
-                        <span className="text-sm font-mono text-gray-900 dark:text-white">
-                          {metadata.l1Contracts.optimismMintableERC721Factory.slice(0, 6)}...{metadata.l1Contracts.optimismMintableERC721Factory.slice(-4)}
-                        </span>
-                        <button
-                          onClick={() => metadata.l1Contracts.optimismMintableERC721Factory && navigator.clipboard.writeText(metadata.l1Contracts.optimismMintableERC721Factory)}
-                          className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-                          title="Copy Optimism Mintable ERC721 Factory Address"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
-                          </svg>
-                        </button>
-                        <Link
-                          href={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.optimismMintableERC721Factory)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-tokamak-blue hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                          title="View Optimism Mintable ERC721 Factory on Etherscan"
-                        >
-                          <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-                          </svg>
-                        </Link>
-                      </div>
-                    </div>
-                  )}
-                  {metadata.l1Contracts.superchainConfig && (
-                    <AddressDisplay
-                      address={metadata.l1Contracts.superchainConfig}
-                      label="Superchain Config"
-                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.superchainConfig)}
-                      copyTooltip="Copy Superchain Config Address"
-                      linkTooltip="View Superchain Config on Etherscan"
-                    />
-                  )}
-                  {metadata.l1Contracts.l1UsdcBridge && (
-                    <AddressDisplay
-                      address={metadata.l1Contracts.l1UsdcBridge}
-                      label="L1 USDC Bridge"
-                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1UsdcBridge)}
-                      copyTooltip="Copy L1 USDC Bridge Address"
-                      linkTooltip="View L1 USDC Bridge on Etherscan"
-                    />
-                  )}
-                  {metadata.l1Contracts.l1Usdc && (
-                    <AddressDisplay
-                      address={metadata.l1Contracts.l1Usdc}
-                      label="L1 USDC"
-                      explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, metadata.l1Contracts.l1Usdc)}
-                      copyTooltip="Copy L1 USDC Address"
-                      linkTooltip="View L1 USDC on Etherscan"
-                    />
-                  )}
-                </div>
+                <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Name</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Verification</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Address</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {L1_CONTRACTS.map(({ name, key }) => {
+                      const address = metadata.l1Contracts[key];
+                      if (!address) return null;
+                      const verify = l1VerifyResults[name] || { result: null, loading: verificationLoading, error: null };
+                      return (
+                        <tr key={name}>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">{name}</td>
+                          <td className="px-4 py-2 whitespace-nowrap flex items-center gap-2">
+                            {verify.loading && <LoadingSpinner size="sm" />}
+                            {verify.result && verify.result.match && !verify.loading && (
+                              <span className="text-xs font-bold text-green-600 dark:text-green-400">Verified</span>
+                            )}
+                            {verify.result && !verify.result.match && !verify.loading && (
+                              <span className="text-xs font-bold text-red-600 dark:text-red-400">Not Match</span>
+                            )}
+                            {verify.error && <span className="text-xs text-red-500 truncate">{verify.error}</span>}
+                            <button
+                              className="ml-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                              title="Retry verification"
+                              onClick={() => handleL1Verify(name, address)}
+                              disabled={verify.loading}
+                              aria-label={`Retry verification for ${name}`}
+                            >
+                              <RefreshIcon className={verify.loading ? 'animate-spin' : ''} />
+                            </button>
+                          </td>
+                          <td className="px-4 py-2 truncate max-w-[180px]">
+                            <AddressDisplay
+                              address={address}
+                              label=""
+                              explorerUrl={getEtherscanAddressUrl(metadata.l1ChainId, address)}
+                              copyTooltip={`Copy ${name} Address`}
+                              linkTooltip={`View ${name} on Etherscan`}
+                            />
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
               </div>
-
-              {/* L2 Contracts */}
+            </Card>
+            {/* L2 Contracts Card */}
+            <Card>
+              <h4 className="font-medium text-gray-900 dark:text-white mb-3">L2 Contracts</h4>
               <div>
-                <h4 className="font-medium text-gray-900 dark:text-white mb-3">L2 Contracts</h4>
-                <div className="space-y-2">
-                  <AddressDisplay
-                    address={metadata.l2Contracts.nativeToken}
-                    label="Native Token"
-                    explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.nativeToken)}
-                    copyTooltip="Copy Native Token Address"
-                    linkTooltip="View Native Token on L2 Explorer"
-                  />
-                  {metadata.l2Contracts.l2StandardBridge && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.l2StandardBridge}
-                      label="L2 Standard Bridge"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.l2StandardBridge)}
-                      copyTooltip="Copy L2 Standard Bridge Address"
-                      linkTooltip="View L2 Standard Bridge on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.l2CrossDomainMessenger && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.l2CrossDomainMessenger}
-                      label="L2 Cross Domain Messenger"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.l2CrossDomainMessenger)}
-                      copyTooltip="Copy L2 Cross Domain Messenger Address"
-                      linkTooltip="View L2 Cross Domain Messenger on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.l1Block && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.l1Block}
-                      label="L1 Block"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.l1Block)}
-                      copyTooltip="Copy L1 Block Address"
-                      linkTooltip="View L1 Block on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.l2ToL1MessagePasser && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.l2ToL1MessagePasser}
-                      label="L2 To L1 Message Passer"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.l2ToL1MessagePasser)}
-                      copyTooltip="Copy L2 To L1 Message Passer Address"
-                      linkTooltip="View L2 To L1 Message Passer on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.gasPriceOracle && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.gasPriceOracle}
-                      label="Gas Price Oracle"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.gasPriceOracle)}
-                      copyTooltip="Copy Gas Price Oracle Address"
-                      linkTooltip="View Gas Price Oracle on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.l2ERC721Bridge && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.l2ERC721Bridge}
-                      label="L2 ERC721 Bridge"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.l2ERC721Bridge)}
-                      copyTooltip="Copy L2 ERC721 Bridge Address"
-                      linkTooltip="View L2 ERC721 Bridge on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.l1FeeVault && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.l1FeeVault}
-                      label="L1 Fee Vault"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.l1FeeVault)}
-                      copyTooltip="Copy L1 Fee Vault Address"
-                      linkTooltip="View L1 Fee Vault on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.sequencerFeeVault && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.sequencerFeeVault}
-                      label="Sequencer Fee Vault"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.sequencerFeeVault)}
-                      copyTooltip="Copy Sequencer Fee Vault Address"
-                      linkTooltip="View Sequencer Fee Vault on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.baseFeeVault && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.baseFeeVault}
-                      label="Base Fee Vault"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.baseFeeVault)}
-                      copyTooltip="Copy Base Fee Vault Address"
-                      linkTooltip="View Base Fee Vault on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.l2UsdcBridge && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.l2UsdcBridge}
-                      label="L2 USDC Bridge"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.l2UsdcBridge)}
-                      copyTooltip="Copy L2 USDC Bridge Address"
-                      linkTooltip="View L2 USDC Bridge on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.l2Usdc && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.l2Usdc}
-                      label="L2 USDC"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.l2Usdc)}
-                      copyTooltip="Copy L2 USDC Address"
-                      linkTooltip="View L2 USDC on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.wrappedETH && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.wrappedETH}
-                      label="Wrapped ETH"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.wrappedETH)}
-                      copyTooltip="Copy Wrapped ETH Address"
-                      linkTooltip="View Wrapped ETH on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.polygonZkEVMBridge && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.polygonZkEVMBridge}
-                      label="Polygon zkEVM Bridge"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.polygonZkEVMBridge)}
-                      copyTooltip="Copy Polygon zkEVM Bridge Address"
-                      linkTooltip="View Polygon zkEVM Bridge on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.polygonZkEVMGlobalExitRoot && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.polygonZkEVMGlobalExitRoot}
-                      label="Polygon zkEVM Global Exit Root"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.polygonZkEVMGlobalExitRoot)}
-                      copyTooltip="Copy Polygon zkEVM Global Exit Root Address"
-                      linkTooltip="View Polygon zkEVM Global Exit Root on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.multicall && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.multicall}
-                      label="Multicall"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.multicall)}
-                      copyTooltip="Copy Multicall Address"
-                      linkTooltip="View Multicall on L2 Explorer"
-                    />
-                  )}
-                  {metadata.l2Contracts.create2Deployer && (
-                    <AddressDisplay
-                      address={metadata.l2Contracts.create2Deployer}
-                      label="Create2 Deployer"
-                      explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.create2Deployer)}
-                      copyTooltip="Copy Create2 Deployer Address"
-                      linkTooltip="View Create2 Deployer on L2 Explorer"
-                    />
-                  )}
-                </div>
+                <table className="w-full table-fixed divide-y divide-gray-200 dark:divide-gray-700">
+                  <thead>
+                    <tr>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Name</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Verification</th>
+                      <th className="px-4 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase">Address</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
+                    {Object.entries(metadata.l2Contracts).map(([key, address]) => (
+                      address ? (
+                        <tr key={key}>
+                          <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">{key}</td>
+                          <td className="px-4 py-2 whitespace-nowrap flex items-center gap-2">
+                            {l2VerifyResults[key]?.loading && <LoadingSpinner size="sm" />}
+                            {l2VerifyResults[key]?.result && l2VerifyResults[key]?.result.match && !l2VerifyResults[key]?.loading && (
+                              <span className="text-xs font-bold text-green-600 dark:text-green-400">Verified</span>
+                            )}
+                            {l2VerifyResults[key]?.result && !l2VerifyResults[key]?.result.match && !l2VerifyResults[key]?.loading && (
+                              <span className="text-xs font-bold text-red-600 dark:text-red-400">Not Match</span>
+                            )}
+                            {l2VerifyResults[key]?.error && <span className="text-xs text-red-500 truncate">{l2VerifyResults[key]?.error}</span>}
+                            <button
+                              className="ml-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
+                              title="Retry verification"
+                              onClick={() => handleL2Verify(key, address)}
+                              disabled={l2VerifyResults[key]?.loading}
+                              aria-label={`Retry verification for ${key}`}
+                            >
+                              <RefreshIcon className={l2VerifyResults[key]?.loading ? 'animate-spin' : ''} />
+                            </button>
+                          </td>
+                          <td className="px-4 py-2 truncate max-w-[180px]">
+                            <AddressDisplay
+                              address={address}
+                              label=""
+                              explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, address)}
+                              copyTooltip={`Copy ${key} Address`}
+                              linkTooltip={`View ${key} on L2 Explorer`}
+                            />
+                          </td>
+                        </tr>
+                      ) : null
+                    ))}
+                  </tbody>
+                </table>
               </div>
-            </div>
+            </Card>
           </Card>
 
+      </div>
+    </div>
+  );
+}
+
+function L2ContractVerificationRow({ name, address, l2ChainId, rpcUrl, result, loading, error }: {
+  name: string;
+  address: string;
+  l2ChainId: number;
+  rpcUrl: string;
+  result: null | { match: boolean; isProxy?: boolean; isProxyMatch?: boolean; isImplementationMatch?: boolean; error?: string };
+  loading: boolean;
+  error: string | null;
+}) {
+  return (
+    <div className="flex flex-col w-full py-1">
+      <div className="flex items-center justify-between w-full">
+        <div className="flex items-center space-x-2 min-w-0">
+          <span className="text-sm text-gray-600 dark:text-gray-400 whitespace-nowrap">{name}</span>
+          {result && result.match && (
+            <span className="text-xs font-bold text-green-600 dark:text-green-400 whitespace-nowrap">Verified</span>
+          )}
+        </div>
+        <div className="flex items-center space-x-2 min-w-0">
+          <AddressDisplay
+            address={address}
+            label=""
+            explorerUrl={getL2ExplorerAddressUrlFromExplorers([], address)}
+            copyTooltip={`Copy ${name} Address`}
+            linkTooltip={`View ${name} on L2 Explorer`}
+          />
+        </div>
+      </div>
+      <div className="flex items-center space-x-2 mt-1 min-h-[1.5rem]">
+        {loading && <LoadingSpinner size="sm" />}
+        {result && !result.match && !loading && (
+          <span className="text-xs font-bold text-red-600 dark:text-red-400">Not Match</span>
+        )}
+        {error && <span className="text-xs text-red-500 truncate">{error}</span>}
       </div>
     </div>
   );

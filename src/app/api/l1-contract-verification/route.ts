@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { verifyProxyAndImplementation } from '@/utils/abi';
+import { verifyL1ContractBytecodeWithCache } from '@/services/verifyL1ContractBytecodeWithCache';
 
 export async function POST(request: NextRequest) {
   try {
@@ -13,7 +13,12 @@ export async function POST(request: NextRequest) {
         ? process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com'
         : process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
       try {
-        const result = await verifyProxyAndImplementation(c.name, network, rpcUrl, c.address);
+        const result = await verifyL1ContractBytecodeWithCache({
+          name: c.name,
+          network,
+          rpcUrl,
+          address: c.address,
+        });
         results.push(result);
       } catch (err) {
         results.push({ contractName: c.name, error: err instanceof Error ? err.message : String(err) });

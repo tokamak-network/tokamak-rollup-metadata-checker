@@ -31,3 +31,26 @@ export async function fetchOfficialDeployment(contractName: string, network: 'ma
     return await res.json();
   }
 }
+
+// 프록시 타입에 따라 바이트코드 조회
+export async function getBytecodeByProxyType(proxyType: string): Promise<string | null> {
+  const proxyTypes = ["Proxy", "ResolvedDelegateProxy", "L1ChugSplashProxy", "L1UsdcBridgeProxy"];
+  if (proxyTypes.includes(proxyType)) {
+    const fileUrl = `${LOCAL_BYTECODE_PATH}${proxyType}.json`;
+    if (isNode()) {
+      // Node.js (테스트, API 서버)에서는 파일 시스템으로 읽기
+      const { readFile } = await import("fs/promises");
+      const path = await import("path");
+      const filePath = path.join(process.cwd(), "public", "bytecodes", `${proxyType}.json`);
+      const file = await readFile(filePath, "utf-8");
+      return JSON.parse(file).deployedBytecode;
+    } else {
+      // 브라우저/클라이언트에서는 fetch 사용
+      const res = await fetch(fileUrl);
+      if (!res.ok) throw new Error(`Failed to fetch official deployment for ${proxyType}`);
+      return (await res.json()).deployedBytecode;
+    }
+  }
+  return null;
+}
+

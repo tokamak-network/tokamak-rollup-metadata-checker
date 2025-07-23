@@ -1,28 +1,28 @@
 import { config } from '@/config';
-import {L2_CONTRACT_NAMES, L2_BYTECODE_RAW_URL_TEMPLATE} from '@/config/index';
+import { L1_CONTRACT_NAMES, L1_BYTECODE_RAW_URL_TEMPLATE } from '@/config/index';
 
 /**
- * L2 컨트랙트 바이트코드 캐시 서비스
+ * L1 컨트랙트 바이트코드 캐시 서비스
  * 앱 시작 시 jsDelivr에서 모든 바이트코드를 읽어와 메모리에 저장합니다.
  */
 
-export interface L2BytecodeInfo {
+export interface L1BytecodeInfo {
   name: string; // 파일명 (예: OptimismPortalProxy.json)
   bytecode: string; // 바이트코드(hex)
 }
 
-class L2BytecodeCache {
+class L1BytecodeCache {
   private bytecodeMap: Map<string, string> = new Map();
   private initialized = false;
 
   /**
-   * jsDelivr API를 통해 L2 바이트코드 디렉토리의 모든 파일을 읽어와 캐싱
+   * jsDelivr API를 통해 L1 바이트코드 디렉토리의 모든 파일을 읽어와 캐싱
    */
   async initialize() {
     if (this.initialized) return;
 
-    for (const file of L2_CONTRACT_NAMES) {
-      const fileUrl = L2_BYTECODE_RAW_URL_TEMPLATE.replace('{contractName}', file);
+    for (const file of L1_CONTRACT_NAMES) {
+      const fileUrl = L1_BYTECODE_RAW_URL_TEMPLATE.replace('{contractName}', file);
       const fileRes = await fetch(fileUrl);
       if (!fileRes.ok) continue;
       const json = await fileRes.json();
@@ -52,4 +52,4 @@ class L2BytecodeCache {
   }
 }
 
-export const l2BytecodeCache = new L2BytecodeCache();
+export const l1BytecodeCache = new L1BytecodeCache();
