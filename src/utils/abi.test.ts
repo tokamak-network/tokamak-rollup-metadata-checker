@@ -39,7 +39,7 @@ describe('verifyProxyAndImplementation', () => {
     it('should verify L1StandardBridge proxy contract on sepolia', async () => {
         // Sepolia 환경에서 테스트 - L1StandardBridge는 L1ChugSplashProxy 타입
         const rpcUrl = process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com';
-        const contractAddress = '0xd5A145ad7c07192DF22f8096460AA8bB00e7479b'; // 제공받은 주소
+        const contractAddress = '0xef10be662275c39bceea5677e4085ab1758900e1'; // 제공받은 주소
 
         const result = await verifyProxyAndImplementation('L1StandardBridge', 'sepolia', rpcUrl, contractAddress);
          console.log('Contract name:', result.contractName);
