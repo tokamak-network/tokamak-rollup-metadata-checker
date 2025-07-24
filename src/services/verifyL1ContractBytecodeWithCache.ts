@@ -2,21 +2,24 @@ import { l1BytecodeCache } from './l1-bytecode-cache';
 import { ethers } from 'ethers';
 import { CONTRACT_PROXY_TYPE_MAP } from '@/config/index';
 import { getBytecodeByProxyType } from '@/utils/official-deployment';
-import { getProxyImplementation } from '@/utils/abi';
+import { getProxyImplementation, getProxyImplementationByProxyAdmin } from '@/utils/abi';
 import { L1_CONTRACT_NAMES } from '@/config/index';
 import { MAINNET_RPC_URL, SEPOLIA_RPC_URL } from '@/config/index';
+import { isValidAddress } from '@/utils/validation';
 
 
 export async function verifyL1ContractBytecodeWithCache({
   name,
   network,
   rpcUrl,
-  address
+  address,
+  proxyAdminAddress = null,
 }: {
   name: string;
   network: string;
   rpcUrl: string|undefined;
   address: string;
+  proxyAdminAddress?: string | null
 }) {
   await l1BytecodeCache.initialize();
 
@@ -28,6 +31,11 @@ export async function verifyL1ContractBytecodeWithCache({
   const actualChainId = Number(networkInfo.chainId);
 
   name = name.charAt(0).toUpperCase() + name.slice(1);
+
+  if (name === 'L1CrossDomainMessenger' && ( proxyAdminAddress == null || !isValidAddress(proxyAdminAddress)) ) {
+    // 프록시 어드민을 통해서 로직 주소를 조회해야 한다. 파리미터로 프록시 어드민 주소를 꼭 받아야만 가능하다.
+    throw new Error('Missing proxy admin address');
+  }
 
   // 1. 받은 name 의 이름 뒤에 Proxy 라는 단어를 붙인것이 L1 컨트랙 목록에 있으면 그것이 프록시 컨트랙 이름임
   const proxyName = name + 'Proxy';
@@ -76,11 +84,15 @@ export async function verifyL1ContractBytecodeWithCache({
     let isImplementationMatch = false;
     // 5. 프록시 바이트코드 비교 결과에 따라 구현체 바이트코드 비교
     if (isProxyMatch) {
-
+      let implementationAddress = null
       // 5.1 구현체 로직 주소 조회
       // L1CrossDomainMessenger 의 경우는 로직을 가져오는 방법을 다르게 가져와야 하는데.. addressManager로 가져와야 하는데.
-
-      const implementationAddress = await getProxyImplementation(address, rpcUrl);
+      if (name === 'L1CrossDomainMessenger') {
+        // 프록시 어드민에서 주소 조회
+        implementationAddress = await getProxyImplementationByProxyAdmin(proxyAdminAddress!, address, rpcUrl);
+      } else {
+        implementationAddress = await getProxyImplementation(address, rpcUrl);
+      }
       // console.log('implementationAddress', implementationAddress);
 
       // 5.2 구현체 바이트코드 조회
