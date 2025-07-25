@@ -54,7 +54,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json([]);
   }
   try {
-    const fetcher = new MetadataFetcher(config.metadataRepoUrl, config.jsDelivrApiUrl, config.timeout);
+    const fetcher = new MetadataFetcher(config.jsDelivrApiUrl, config.timeout);
 
     // 실제 존재하는 네트워크 목록을 동적으로 가져옴
     let networks: string[] = [];
@@ -80,7 +80,7 @@ export async function GET(request: NextRequest) {
         }
         // 선택된 주소들만 필터링
         const selectedMetadata = metadata.filter(meta =>
-          selectedAddresses.includes(meta.l1Contracts.systemConfig)
+          selectedAddresses.includes(meta.l1Contracts.SystemConfig)
         );
         // console.log('selectedMetadata', selectedMetadata);
 
@@ -96,7 +96,7 @@ export async function GET(request: NextRequest) {
             l1ChainId: meta.l1ChainId,
             l2ChainId: meta.l2ChainId,
             name: meta.name,
-            systemConfigAddress: meta.l1Contracts.systemConfig,
+            systemConfigAddress: meta.l1Contracts.SystemConfig,
             rollupType: meta.rollupType,
             status: meta.status,
             stakingStatus: meta.staking?.candidateStatus??  'not_candidate',

@@ -22,6 +22,10 @@ export function AddressDisplay({
   noExplorerTooltip = "No active explorer available",
   showFullAddress = false
 }: AddressDisplayProps) {
+
+  if (!address || typeof address !== "string") {
+    return <span className="text-gray-400">N/A</span>;
+  }
   const displayAddress = showFullAddress
     ? address
     : `${address.slice(0, 6)}...${address.slice(-4)}`;

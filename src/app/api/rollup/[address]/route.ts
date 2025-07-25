@@ -5,6 +5,7 @@ import { getNetworkStats, isValidRpcUrl } from '@/utils/rpc';
 import { checkAllExplorers, ExplorerStatus } from '@/utils/explorer-checker';
 import { getContractTimestamps, getEstimatedTimestamps } from '@/utils/contract-calls';
 import { verifySequencerAddress } from '@/utils/system-config';
+import {fetchGithubMetadataFromHtml, fetchGithubDirItemsFromHtml } from "@/utils/git-crawling"
 
 export async function GET(
   request: NextRequest,
@@ -22,59 +23,17 @@ export async function GET(
     const { searchParams } = new URL(request.url);
     const network = searchParams.get('network') || 'sepolia';
 
-    // config.metadataRepoUrl 예시: https://cdn.jsdelivr.net/gh/OWNER/REPO@BRANCH
-    // config.jsDelivrApiUrl 예시: https://data.jsdelivr.com/v1/package/gh/OWNER/REPO@BRANCH/flat
-    // owner/repo/branch 추출
-    let owner = '';
-    let repo = '';
-    let branch = 'main';
-    if (config.metadataRepoUrl.includes('jsdelivr.net/gh/')) {
-      const m = config.metadataRepoUrl.match(/jsdelivr\.net\/gh\/([^\/]+)\/([^@]+)@([^/]+)/);
-      if (m) {
-        owner = m[1];
-        repo = m[2];
-        branch = m[3];
-      }
-    }
-    if (!owner || !repo) {
-      return NextResponse.json(
-        { error: 'Cannot parse owner/repo from config.metadataRepoUrl' },
-        { status: 500 }
-      );
-    }
-    // 파일 경로
-    const filePath = `data/${network}/${address}.json`;
-    // 1. jsDelivr CDN URL
-    const jsDelivrUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${branch}/${filePath}`;
-    // 2. raw.githubusercontent.com URL
-    const rawUrl = `https://raw.githubusercontent.com/${owner}/${repo}/${branch}/${filePath}`;
-
     let metadata: RollupMetadata | null = null;
     let fetchError: any = null;
-    // 1. jsDelivr 시도
-    try {
-      const res = await fetch(jsDelivrUrl);
-      if (res.ok) {
-        metadata = await res.json();
-      } else {
-        fetchError = `jsDelivr: HTTP ${res.status}`;
-      }
-    } catch (e) {
-      fetchError = `jsDelivr: ${e}`;
+
+    // 1. fetchGithubMetadataFromHtml(network: string, address: string)
+
+    try{
+      metadata =  await fetchGithubMetadataFromHtml(network, address)
+    } catch(e){
+      fetchError += ` | raw: HTTP fetchGithubMetadataFromHtml `;
     }
-    // 2. 실패 시 raw.githubusercontent.com 시도
-    if (!metadata) {
-      try {
-        const res = await fetch(rawUrl);
-        if (res.ok) {
-          metadata = await res.json();
-        } else {
-          fetchError += ` | raw: HTTP ${res.status}`;
-        }
-      } catch (e) {
-        fetchError += ` | raw: ${e}`;
-      }
-    }
+
     if (!metadata) {
       return NextResponse.json(
         { error: 'L2 rollup not found', fetchError },
@@ -129,11 +88,11 @@ export async function GET(
           : process.env.SEPOLIA_RPC_URL || 'https://ethereum-sepolia.publicnode.com';
 
         // 실제 컨트랙트 이벤트에서 시간 가져오기 시도
-        if (metadata.l1Contracts.l2OutputOracle) {
+        if (metadata.l1Contracts.L2OutputOracle) {
           contractTimestamps = await getContractTimestamps(
             l1RpcUrl,
             metadata.rpcUrl,
-            metadata.l1Contracts.l2OutputOracle,
+            metadata.l1Contracts.L2OutputOracle,
             metadata.sequencer.address,
             metadata.l1ChainId
           );
@@ -194,8 +153,13 @@ export async function GET(
 
     // Verify sequencer address against SystemConfig contract
     console.log(`🔐 Verifying sequencer address for ${metadata.name}...`);
+
+    console.log(`🔐 Verifying sequencer address `, metadata.l1Contracts.SystemConfig, metadata.sequencer.address);
+
+
+
     const sequencerVerification = await verifySequencerAddress(
-      metadata.l1Contracts.systemConfig,
+      metadata.l1Contracts.SystemConfig ,
       metadata.sequencer.address,
       metadata.l1ChainId
     );
@@ -214,7 +178,7 @@ export async function GET(
       l1ChainId: metadata.l1ChainId,
       l2ChainId: metadata.l2ChainId,
       name: metadata.name,
-      systemConfigAddress: metadata.l1Contracts.systemConfig,
+      systemConfigAddress: metadata.l1Contracts.SystemConfig,
       rollupType: metadata.rollupType,
       status: metadata.status,
       isActive: metadata.status === 'active',

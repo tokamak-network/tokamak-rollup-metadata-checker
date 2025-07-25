@@ -2,12 +2,10 @@ import { RollupMetadata } from '../types/metadata';
 import { fetchGithubDirItemsFromHtml , fetchGithubMetadataFromHtml} from '@/utils/git-crawling';
 
 export class MetadataFetcher {
-  private readonly repoUrl: string;
   private readonly jsDelivrApiUrl: string;
   private readonly timeout: number;
 
-  constructor(repoUrl: string, jsDelivrApiUrl: string, timeout: number = 10000) {
-    this.repoUrl = repoUrl;
+  constructor(  jsDelivrApiUrl: string, timeout: number = 10000) {
     this.jsDelivrApiUrl = jsDelivrApiUrl;
     this.timeout = timeout;
   }

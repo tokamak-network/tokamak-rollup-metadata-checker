@@ -1,5 +1,6 @@
-import { config } from '@/config';
+
 import { L1_CONTRACT_NAMES, L1_BYTECODE_RAW_URL_TEMPLATE } from '@/config/index';
+import { fetchL1BytecodeFromGithub } from '@/utils/git-crawling';
 
 /**
  * L1 컨트랙트 바이트코드 캐시 서비스
@@ -20,14 +21,15 @@ class L1BytecodeCache {
    */
   async initialize() {
     if (this.initialized) return;
-
+    // console.log('L1_CONTRACT_NAMES', L1_CONTRACT_NAMES);
     for (const file of L1_CONTRACT_NAMES) {
-      const fileUrl = L1_BYTECODE_RAW_URL_TEMPLATE.replace('{contractName}', file);
-      const fileRes = await fetch(fileUrl);
-      if (!fileRes.ok) continue;
-      const json = await fileRes.json();
-      if (json.bytecode) {
-        this.bytecodeMap.set(file.replace('.json', ''), json.bytecode);
+
+      let res = await fetchL1BytecodeFromGithub(file);
+      if (!res) continue;
+      // console.log('L1BytecodeCache initialize res', file, res, res.bytecode);
+
+      if (res.bytecode) {
+        this.bytecodeMap.set(file.replace('.json', ''), res.bytecode);
       }
     }
 

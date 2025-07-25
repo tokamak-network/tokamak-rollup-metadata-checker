@@ -28,14 +28,13 @@ interface RollupDetailViewProps {
   explorerStatuses?: ExplorerStatus[];
   onRefresh?: () => void;
   loading?: boolean;
+  contractTimestamps?: {
+    lastProposalTime: number;
+    lastBatchTime: number;
+  };
 }
 
-const L1_CONTRACTS: { name: string; key: keyof L1Contracts }[] = [
-  { name: 'SystemConfig', key: 'systemConfig' },
-  { name: 'OptimismPortal', key: 'optimismPortal' },
-  { name: 'L1StandardBridge', key: 'l1StandardBridge' },
-  { name: 'L2OutputOracle', key: 'l2OutputOracle' },
-];
+// If you need to support lowerCamelCase keys for legacy data, use bracket notation with type assertion as shown above for real-time fallback.
 
 function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -46,7 +45,7 @@ function InfoRow({ label, value }: { label: string; value: React.ReactNode }) {
   );
 }
 
-export function RollupDetailView({ metadata, status, actualStats: initialActualStats, explorerStatuses, onRefresh, loading }: RollupDetailViewProps) {
+export function RollupDetailView({ metadata, status, actualStats: initialActualStats, explorerStatuses, onRefresh, loading, contractTimestamps }: RollupDetailViewProps) {
   const [candidateMemo, setCandidateMemo] = useState<string>('');
   const [memoLoading, setMemoLoading] = useState(false);
   const [operatorAddress, setOperatorAddress] = useState<string>('');
@@ -94,7 +93,7 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
     }
   };
 
-        const fetchOperatorAddress = async () => {
+  const fetchOperatorAddress = async () => {
     if (!metadata.staking.candidateAddress) return;
 
     setOperatorLoading(true);
@@ -119,7 +118,7 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
     }
   };
 
-        const fetchManagerAddress = async () => {
+  const fetchManagerAddress = async () => {
     if (!operatorAddress || operatorAddress === 'No operator found' || operatorAddress === 'Failed to fetch operator' || operatorAddress === 'Error loading operator') return;
 
     setManagerLoading(true);
@@ -159,10 +158,10 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
 
   useEffect(() => {
     async function fetchOnchainSequencer() {
-      if (!metadata.l1Contracts.systemConfig || !metadata.sequencer?.address) return;
+      if (!metadata.l1Contracts.SystemConfig || !metadata.sequencer?.address) return;
       setSequencerLoading(true);
       try {
-        const url = `/api/contract-call?address=${metadata.l1Contracts.systemConfig}&chainId=${metadata.l1ChainId}&function=unsafeBlockSigner()&contractType=system-config`;
+        const url = `/api/contract-call?address=${metadata.l1Contracts.SystemConfig}&chainId=${metadata.l1ChainId}&function=unsafeBlockSigner()&contractType=system-config`;
         const res = await fetch(url);
         const data = await res.json();
         setOnchainSequencer(data.result);
@@ -173,7 +172,7 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
       }
     }
     fetchOnchainSequencer();
-  }, [metadata.l1Contracts.systemConfig, metadata.l1ChainId, metadata.sequencer?.address]);
+  }, [metadata.l1Contracts.SystemConfig, metadata.l1ChainId, metadata.sequencer?.address]);
 
   useEffect(() => {
     async function fetchActualStats() {
@@ -237,53 +236,50 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
   useEffect(() => {
     let cancelled = false;
     async function verifyAllL1Contracts() {
-      const contracts = L1_CONTRACTS.map(c => ({
-        name: c.name,
-        address: metadata.l1Contracts[c.key],
-      })).filter(c => !!c.address);
-      if (contracts.length === 0) return;
-      setVerificationLoading(true);
-      setL1VerifyResults({});
-      try {
-        const network = metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia';
-        const rpcUrl = metadata.l1ChainId === 1
-          ? process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com'
-          : process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/demo';
-        const res = await fetch('/api/l1-contract-verification', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            contracts: contracts.map(c => ({ name: c.name, address: c.address })),
-            network,
-            rpcUrl,
-          }),
-        });
-        const data = await res.json();
-        if (data && Array.isArray(data.results)) {
-          const resultsMap: { [name: string]: { result: any; loading: boolean; error: string | null } } = {};
-          for (const r of data.results) {
-            if (r.error) {
-              resultsMap[r.contractName || r.contract || 'unknown'] = { result: null, loading: false, error: r.error };
-            } else {
-              resultsMap[r.contractName || r.contract] = { result: r, loading: false, error: null };
-            }
+      // setVerificationLoading(true);
+      // setL1VerifyResults({});
+
+      const entries = Object.entries(metadata.l1Contracts).filter(([_, address]) => !!address);
+
+      for (const [name, address] of entries) {
+        if (cancelled) break;
+        setL1VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: true, error: null } }));
+        try {
+          // Capitalize first letter of contract name
+          const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
+
+          const params = {
+            name: capitalized,
+            address,
+            chainId: metadata.l1ChainId,
+            proxyAdminAddress: metadata.l1Contracts.ProxyAdmin
           }
-          if (!cancelled) setL1VerifyResults(resultsMap);
+
+          const res = await fetch('/api/l1-contract-verification', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params),
+          });
+          const data = await res.json();
+          console.log('l1-contract-verification', params, data)
+          if (data.error) {
+            setL1VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: data.error } }));
+          } else {
+            setL1VerifyResults(prev => ({ ...prev, [name]: { result: data, loading: false, error: null } }));
+          }
+        } catch (e) {
+          setL1VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: e instanceof Error ? e.message : String(e) } }));
         }
-      } catch (e) {
-        // 전체 실패 시 모든 컨트랙트에 에러 표시
-        const errMap: { [name: string]: { result: null, loading: false, error: string } } = {};
-        for (const c of contracts) {
-          errMap[c.name] = { result: null, loading: false, error: e instanceof Error ? e.message : String(e) };
-        }
-        if (!cancelled) setL1VerifyResults(errMap);
-      } finally {
-        setVerificationLoading(false);
       }
     }
     verifyAllL1Contracts();
     return () => { cancelled = true; };
   }, [metadata.l1Contracts, metadata.l1ChainId]);
+
+  // l1VerifyResults 상태 변화 추적용 useEffect 추가
+  useEffect(() => {
+    console.log('l1VerifyResults 상태 변경', l1VerifyResults);
+  }, [l1VerifyResults]);
 
   const isSequencerMatch = onchainSequencer && metadata.sequencer.address
     ? onchainSequencer.toLowerCase() === metadata.sequencer.address.toLowerCase()
@@ -360,6 +356,16 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
       setL2VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: e instanceof Error ? e.message : String(e) } }));
     }
   };
+
+  const safeContractTimestamps = contractTimestamps || { lastProposalTime: 0, lastBatchTime: 0 };
+
+  // Example for SystemConfig usage:
+  const systemConfigAddress = metadata.l1Contracts.SystemConfig || (metadata.l1Contracts as any).systemConfig;
+  if (!systemConfigAddress) {
+    console.error("[RollupDetailView] SystemConfig address is missing in metadata:", metadata);
+    return <div className="text-red-500">SystemConfig address is missing in metadata. Please check the metadata source.</div>;
+  }
+
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
@@ -440,16 +446,16 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
               <div className="flex justify-between"><span className="text-sm text-gray-600 dark:text-gray-400">L2 Gas Limit</span><div className="text-sm font-medium text-gray-900 dark:text-white"><span>⚙️ {parseInt(metadata.networkConfig.gasLimit).toLocaleString()} gas</span>{actualStatsLoading ? (<span className="ml-3 text-gray-400">| Loading...</span>) : actualStatsError ? (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ {actualStatsError}</span>) : actualStats && (actualStats.actualGasLimit && actualStats.actualGasLimit > 0 ? (<span className="ml-3">| ⛽ <span className="text-blue-600 dark:text-blue-400">{actualStats.actualGasLimit.toLocaleString()} gas</span> (actual)</span>) : (<span className="ml-3 text-red-400 dark:text-red-500">| ❌ RPC failed</span>))}</div></div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">Last Proposal</span>
-                <div className="text-right">{status.lastProposalTime > 0 ? (
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(status.lastProposalTime)}</span>
+                <div className="text-right">{safeContractTimestamps.lastProposalTime > 0 ? (
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(safeContractTimestamps.lastProposalTime)}</span>
                 ) : (
                   <span className="text-sm text-gray-500 dark:text-gray-400">Not yet supported</span>
                 )}</div>
               </div>
               <div className="flex justify-between">
                 <span className="text-sm text-gray-600 dark:text-gray-400 flex items-center">Last Batch</span>
-                <div className="text-right">{status.lastBatchTime > 0 ? (
-                  <span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(status.lastBatchTime)}</span>
+                <div className="text-right">{safeContractTimestamps.lastBatchTime > 0 ? (
+                  <span className="text-sm font-medium text-gray-900 dark:text-white">{formatTimestamp(safeContractTimestamps.lastBatchTime)}</span>
                 ) : (
                   <span className="text-sm text-gray-500 dark:text-gray-400">Not yet supported</span>
                 )}</div>
@@ -485,8 +491,12 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
               { label: "Last Updated", value: formatTimestamp(new Date(metadata.lastUpdated).getTime()) }
             ]}
             headerLink={{
-              url: `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/${metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia'}/${metadata.l1Contracts.systemConfig.toLowerCase()}.json`,
-              tooltip: "View metadata file in repository"
+              url: systemConfigAddress
+                ? `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/${metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia'}/${systemConfigAddress.toLowerCase()}.json`
+                : '#',
+              tooltip: systemConfigAddress
+                ? "View metadata file in repository"
+                : "SystemConfig address not available"
             }}
           />
           <Card>
@@ -583,9 +593,9 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
                 label="L2 Address"
                 value={
                   <AddressDisplay
-                    address={metadata.l2Contracts.nativeToken}
+                    address={metadata.l2Contracts.NativeToken}
                     label=""
-                    explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.nativeToken)}
+                    explorerUrl={getL2ExplorerAddressUrlFromExplorers(metadata.explorers, metadata.l2Contracts.NativeToken)}
                     copyTooltip="Copy L2 Address"
                     linkTooltip="View on L2 Explorer"
                   />
@@ -763,31 +773,45 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-100 dark:divide-gray-800">
-                    {L1_CONTRACTS.map(({ name, key }) => {
-                      const address = metadata.l1Contracts[key];
-                      if (!address) return null;
+                    {Object.entries(metadata.l1Contracts).map(([key, value]) => {
+
+                      //1. name 의 첫글자를 대문자로 수정
+                      const name = key.charAt(0).toUpperCase() + key.slice(1)
+                      const address = value
                       const verify = l1VerifyResults[name] || { result: null, loading: verificationLoading, error: null };
+
                       return (
                         <tr key={name}>
                           <td className="px-4 py-2 whitespace-nowrap text-sm text-gray-700 dark:text-gray-200">{name}</td>
                           <td className="px-4 py-2 whitespace-nowrap flex items-center gap-2">
                             {verify.loading && <LoadingSpinner size="sm" />}
-                            {verify.result && verify.result.match && !verify.loading && (
-                              <span className="text-xs font-bold text-green-600 dark:text-green-400">Verified</span>
+                            {/* Verified 표시 조건 보완: 단일 객체 또는 results 배열 모두 지원 */}
+                            {verify.result && !verify.loading && (
+                              (verify.result.match === true ||
+                                (Array.isArray(verify.result.results) && verify.result.results[0]?.match === true)) && (
+                                <span className="text-xs font-bold text-green-600 dark:text-green-400">Verified</span>
+                              )
                             )}
-                            {verify.result && !verify.result.match && !verify.loading && (
-                              <span className="text-xs font-bold text-red-600 dark:text-red-400">Not Match</span>
+                            {verify.result && !verify.loading && (
+                              (verify.result.match === false ||
+                                (Array.isArray(verify.result.results) && verify.result.results[0]?.match === false)) && (
+                                <span className="text-xs font-bold text-red-600 dark:text-red-400">Not Match</span>
+                              )
                             )}
                             {verify.error && <span className="text-xs text-red-500 truncate">{verify.error}</span>}
                             <button
                               className="ml-1 text-gray-400 hover:text-blue-600 dark:hover:text-blue-400"
                               title="Retry verification"
-                              onClick={() => handleL1Verify(name, address)}
+                              onClick={() => {
+                                console.log('리플래쉬 버튼 클릭', name, address);
+                                handleL1Verify(name, address);
+                              }}
                               disabled={verify.loading}
                               aria-label={`Retry verification for ${name}`}
                             >
                               <RefreshIcon className={verify.loading ? 'animate-spin' : ''} />
                             </button>
+
                           </td>
                           <td className="px-4 py-2 truncate max-w-[180px]">
                             <AddressDisplay

@@ -144,6 +144,39 @@ export async function getProxyImplementation(address: string, rpcUrl: string): P
   }
 }
 
+
+/**
+ * ProxyAdmin 에서  구현 주소를 가져옵니다.
+ * @param proxyAdminAddress 프록시 어드민 컨트랙트 주소
+ * @param address 프록시 컨트랙트 주소
+ * @param rpcUrl RPC URL
+ * @returns 구현 주소 또는 null
+ */
+export async function getProxyImplementationByProxyAdmin(
+  proxyAdminAddress: string,
+  proxyAddress: string,
+  rpcUrl: string
+): Promise<string | null> {
+  const provider = new ethers.JsonRpcProvider(rpcUrl);
+
+  // ProxyAdmin ABI (getProxyImplementation 함수만 포함)
+  const abi = [
+    "function getProxyImplementation(address) view returns (address)"
+  ];
+
+  const proxyAdmin = new ethers.Contract(proxyAdminAddress, abi, provider);
+
+  try {
+    const implementation: string = await proxyAdmin.getProxyImplementation(proxyAddress);
+    return implementation;
+  } catch (e) {
+    // 실패 시 null 반환
+    return null;
+  }
+}
+
+
+
 /**
  * EIP-1967 프록시 관리자 주소를 가져옵니다.
  * @param address 프록시 컨트랙트 주소

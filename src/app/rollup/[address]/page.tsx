@@ -16,6 +16,10 @@ interface RollupDetailData {
     actualGasLimit: number;
   };
   explorerStatuses?: ExplorerStatus[];
+  contractTimestamps?: {
+    lastProposalTime: number;
+    lastBatchTime: number;
+  };
 }
 
 export default function RollupDetailPage() {
@@ -97,6 +101,7 @@ export default function RollupDetailPage() {
     status={rollupData.status}
     actualStats={rollupData.actualStats}
     explorerStatuses={rollupData.explorerStatuses}
+    contractTimestamps={rollupData.contractTimestamps}
     onRefresh={fetchRollupDetail}
     loading={loading}
   />;

@@ -1,6 +1,6 @@
-import { config } from '@/config';
-import {L2_CONTRACT_NAMES, L2_BYTECODE_RAW_URL_TEMPLATE} from '@/config/index';
 
+import {L2_CONTRACT_NAMES, L2_BYTECODE_RAW_URL_TEMPLATE} from '@/config/index';
+import { fetchL2BytecodeFromGithub } from '@/utils/git-crawling';
 /**
  * L2 컨트랙트 바이트코드 캐시 서비스
  * 앱 시작 시 jsDelivr에서 모든 바이트코드를 읽어와 메모리에 저장합니다.
@@ -22,13 +22,14 @@ class L2BytecodeCache {
     if (this.initialized) return;
 
     for (const file of L2_CONTRACT_NAMES) {
-      const fileUrl = L2_BYTECODE_RAW_URL_TEMPLATE.replace('{contractName}', file);
-      const fileRes = await fetch(fileUrl);
-      if (!fileRes.ok) continue;
-      const json = await fileRes.json();
-      if (json.bytecode) {
-        this.bytecodeMap.set(file.replace('.json', ''), json.bytecode);
+      let res = await fetchL2BytecodeFromGithub( file);
+      if (!res) continue;
+      // console.log('L1BytecodeCache initialize res', file, res, res.bytecode);
+
+      if (res.bytecode) {
+        this.bytecodeMap.set(file.replace('.json', ''), res.bytecode);
       }
+
     }
 
     this.initialized = true;

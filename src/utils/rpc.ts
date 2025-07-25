@@ -62,8 +62,6 @@ export function isValidRpcUrl(url: string): boolean {
       'sepolia.gateway.tenderly.co'
     ];
 
-
-
     // 유효하지 않은 도메인이 포함되어 있으면 false
     if (invalidDomains.some(domain => hostname.includes(domain))) {
       console.log('invalidDomains', invalidDomains);

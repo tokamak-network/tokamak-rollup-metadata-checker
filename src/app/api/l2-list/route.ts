@@ -5,7 +5,7 @@ import { config } from '@/config';
 
 export async function GET() {
   try {
-    const fetcher = new MetadataFetcher(config.metadataRepoUrl, config.jsDelivrApiUrl, config.timeout);
+    const fetcher = new MetadataFetcher( config.jsDelivrApiUrl, config.timeout);
 
     // 실제 존재하는 네트워크 목록을 동적으로 가져옴
     let networks: string[] = [];
@@ -23,10 +23,11 @@ export async function GET() {
       try {
         const metadata = await fetcher.fetchAllMetadata(network);
         console.log('metadata.length', metadata.length);
+
         // 메타데이터를 L2BasicInfo로 변환
         const basicInfos = metadata.map(meta => ({
           name: meta.name,
-          systemConfigAddress: meta.l1Contracts.systemConfig,
+          systemConfigAddress: meta.l1Contracts.SystemConfig|| meta.l1Contracts.systemConfig || '' ,
           l1ChainId: meta.l1ChainId,
           l2ChainId: meta.l2ChainId,
           rollupType: meta.rollupType,

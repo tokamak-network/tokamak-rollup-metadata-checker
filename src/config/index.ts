@@ -7,22 +7,17 @@ if (typeof window === 'undefined') {
 export interface AppConfig {
   timeout: number;
   retryCount: number;
-  metadataRepoUrl: string;
   jsDelivrApiUrl: string;
   supportedNetworks: string[];
   checkInterval: number;
   outputFormat: 'json' | 'table' | 'csv';
   logLevel: 'debug' | 'info' | 'warn' | 'error';
-  l2BytecodeRepoUrl: string; // L2 컨트랙트 바이트코드 저장소 URL
+
 }
 
 export const config: AppConfig = {
   timeout: typeof window === 'undefined' ? parseInt(process.env.TIMEOUT || '10000') : 10000,
   retryCount: typeof window === 'undefined' ? parseInt(process.env.RETRY_COUNT || '3') : 3,
-  // GitHub 저장소에서 메타데이터 파일을 직접 다운로드하는 URL
-  metadataRepoUrl: typeof window === 'undefined'
-    ? process.env.METADATA_REPO_URL || 'https://cdn.jsdelivr.net/gh/tokamak-network/tokamak-rollup-metadata-repository@main'
-    : 'https://cdn.jsdelivr.net/gh/tokamak-network/tokamak-rollup-metadata-repository@main',
   // jsDelivr API를 통해 파일 목록을 가져오는 URL (JSDELIVR_API_URL 환경변수로 설정 가능)
   jsDelivrApiUrl: typeof window === 'undefined'
     ? process.env.JSDELIVR_API_URL || 'https://data.jsdelivr.com/v1/package/gh/tokamak-network/tokamak-rollup-metadata-repository@main/flat'
@@ -37,57 +32,75 @@ export const config: AppConfig = {
   logLevel: typeof window === 'undefined'
     ? (process.env.LOG_LEVEL as 'debug' | 'info' | 'warn' | 'error') || 'info'
     : 'info',
-  l2BytecodeRepoUrl: typeof window === 'undefined'
-    ? process.env.L2_BYTECODE_REPO_URL || 'https://github.com/tokamak-network/tokamak-thanos/tree/feat/util-extract-onchain-bytecode/packages/tokamak/contracts-bedrock/bytecode/l2'
-    : 'https://github.com/tokamak-network/tokamak-thanos/tree/feat/util-extract-onchain-bytecode/packages/tokamak/contracts-bedrock/bytecode/l2',
 };
 
+export const METADATA_GITHUB_URL_TEMPLATE = `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/tree/main/data/{network}`;
+
+export const METADATA_RAW_URL_TEMPLATE = `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/{network}/{address}.json`;
+
+export const L1_BYTECODE_RAW_URL_TEMPLATE =
+  'https://github.com/tokamak-network/tokamak-thanos/blob/fix/extract-implementation-prdeploys/packages/tokamak/contracts-bedrock/bytecode/l1/{contractName}.json';
+
 export const L2_BYTECODE_RAW_URL_TEMPLATE =
-  'https://raw.githubusercontent.com/tokamak-network/tokamak-thanos/refs/heads/feat/util-extract-onchain-bytecode/packages/tokamak/contracts-bedrock/bytecode/l2/{contractName}.json';
+  'https://github.com/tokamak-network/tokamak-thanos/blob/fix/extract-implementation-prdeploys/packages/tokamak/contracts-bedrock/bytecode/l2/{contractName}.json';
 
 export const L2_CONTRACT_NAMES = [
   "BaseFeeVault",
-  "CrossL2Inbox",
-  "DeployerWhitelist",
-  "EAS",
-  "ETH",
-  "FiatTokenV2_2",
-  "GasPriceOracle",
-  "GovernanceToken",
-  "L1Block",
-  "L1BlockNumber",
-  "L1FeeVault",
-  "L1MessageSender",
-  "L2CrossDomainMessenger",
-  "L2ERC721Bridge",
-  "L2StandardBridge",
-  "L2ToL1MessagePasser",
-  "L2ToL2CrossDomainMessenger",
-  "L2UsdcBridge",
-  "LegacyERC20NativeToken",
-  "LegacyMessagePasser",
-  "MasterMinter",
-  "NFTDescriptor",
-  "NonfungiblePositionManager",
-  "NonfungibleTokenPositionDescriptor",
-  "OptimismMintableERC20Factory",
-  "OptimismMintableERC721Factory",
-  "ProxyAdmin",
-  "QuoterV2",
-  "SchemaRegistry",
-  "SequencerFeeVault",
-  "SignatureChecker",
-  "SwapRouter02",
-  "TickLens",
-  "UniswapInterfaceMulticall",
-  "UniswapV3Factory",
-  "UniversalRouter",
-  "UnsupportedProtocol",
-  "WETH",
+"BaseFeeVaultProxy",
+"DeployerWhitelist",
+"DeployerWhitelistProxy",
+"EAS",
+"EASProxy",
+"ETH",
+"FiatTokenV2_2",
+"FiatTokenV2_2Proxy",
+"GasPriceOracle",
+"GasPriceOracleProxy",
+"GovernanceToken",
+"L1Block",
+"L1BlockNumber",
+"L1BlockNumberProxy",
+"L1BlockProxy",
+"L1FeeVault",
+"L1FeeVaultProxy",
+"L2CrossDomainMessenger",
+"L2CrossDomainMessengerProxy",
+"L2ERC721Bridge",
+"L2ERC721BridgeProxy",
+"L2StandardBridge",
+"L2StandardBridgeProxy",
+"L2ToL1MessagePasser",
+"L2ToL1MessagePasserProxy",
+"L2UsdcBridge",
+"L2UsdcBridgeProxy",
+"LegacyERC20NativeToken",
+"LegacyMessagePasser",
+"LegacyMessagePasserProxy",
+"MasterMinter",
+"NFTDescriptor",
+"NonfungiblePositionManager",
+"NonfungibleTokenPositionDescriptor",
+"NonfungibleTokenPositionDescriptorProxy",
+"OptimismMintableERC20Factory",
+"OptimismMintableERC20FactoryProxy",
+"OptimismMintableERC721Factory",
+"OptimismMintableERC721FactoryProxy",
+"ProxyAdmin",
+"ProxyAdminProxy",
+"QuoterV2",
+"SchemaRegistry",
+"SchemaRegistryProxy",
+"SequencerFeeVault",
+"SequencerFeeVaultProxy",
+"SignatureChecker",
+"SwapRouter02",
+"TickLens",
+"UniswapInterfaceMulticall",
+"UniswapV3Factory",
+"UniversalRouter",
+"UnsupportedProtocol",
+"WETH"
 ];
-
-export const L1_BYTECODE_RAW_URL_TEMPLATE =
-  'https://raw.githubusercontent.com/tokamak-network/tokamak-thanos/refs/heads/feat/util-extract-onchain-bytecode/packages/tokamak/contracts-bedrock/bytecode/l1/{contractName}.json';
 
 export const L1_CONTRACT_NAMES = [
   "AddressManager",
@@ -158,3 +171,4 @@ export const CONTRACT_PROXY_TYPE_MAP = {
 
 export const MAINNET_RPC_URL = 'https://ethereum.publicnode.com';
 export const SEPOLIA_RPC_URL = 'https://ethereum-sepolia.publicnode.com';
+

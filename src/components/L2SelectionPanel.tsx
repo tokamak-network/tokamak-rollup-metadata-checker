@@ -199,11 +199,15 @@ export function L2SelectionPanel({
 
                 {/* L2 목록 */}
                 <div className="ml-2 space-y-1">
-                  {group.l2s.map((l2) => (
-                    <label
-                      key={l2.systemConfigAddress}
-                      className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors"
-                    >
+                  {
+                  group.l2s.map((l2) => {
+                    const labelKey = `${l2.systemConfigAddress}-${l2.name}-${l2.l2ChainId}`;
+                    console.log('label key:', labelKey, l2);
+                    return (
+                      <label
+                        key={labelKey}
+                        className="flex items-start space-x-3 p-3 hover:bg-gray-50 dark:hover:bg-gray-700 rounded-lg cursor-pointer transition-colors"
+                      >
                       <input
                         type="checkbox"
                         checked={selectedL2s.includes(l2.systemConfigAddress)}
@@ -232,7 +236,8 @@ export function L2SelectionPanel({
                         </div>
                       </div>
                     </label>
-                  ))}
+                  );
+                })}
                 </div>
               </div>
             ))}

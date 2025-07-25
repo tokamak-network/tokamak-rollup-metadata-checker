@@ -51,39 +51,59 @@ export interface Shutdown {
 }
 
 export interface L1Contracts {
-  systemConfig: string;
-  l1StandardBridge?: string;
-  optimismPortal?: string;
-  l2OutputOracle?: string;
-  disputeGameFactory?: string;
-  l1CrossDomainMessenger?: string;
-  l1ERC721Bridge?: string;
-  addressManager?: string;
-  optimismMintableERC20Factory?: string;
-  optimismMintableERC721Factory?: string;
-  superchainConfig?: string;
-  l1UsdcBridge?: string;
-  l1Usdc?: string;
+  SystemConfig: string;
+  systemConfig?: string;
+  L1StandardBridge?: string;
+  OptimismPortal?: string;
+  L2OutputOracle?: string;
+  DisputeGameFactory?: string;
+  L1CrossDomainMessenger?: string;
+  L1ERC721Bridge?: string;
+  AddressManager?: string;
+  OptimismMintableERC20Factory?: string;
+  OptimismMintableERC721Factory?: string;
+  SuperchainConfig?: string;
+  L1UsdcBridge?: string;
+  L1Usdc?: string;
+  ProxyAdmin?: string;
+  AnchorStateRegistry?: string;
+  DelayedWETH?: string;
+  Mips?: string;
+  PermissionedDelayedWETH?: string;
+  PreimageOracle?: string;
+  ProtocolVersions?: string;
+  SafeProxyFactory?: string;
+  SafeSingleton?: string;
+  SystemOwnerSafe?: string;
 }
 
 export interface L2Contracts {
-  nativeToken: string;
-  l2CrossDomainMessenger?: string;
-  l2StandardBridge?: string;
-  l1Block?: string;
-  l2ToL1MessagePasser?: string;
-  gasPriceOracle?: string;
-  l2ERC721Bridge?: string;
-  l1FeeVault?: string;
-  sequencerFeeVault?: string;
-  baseFeeVault?: string;
-  l2UsdcBridge?: string;
-  l2Usdc?: string;
-  wrappedETH?: string;
-  polygonZkEVMBridge?: string;
-  polygonZkEVMGlobalExitRoot?: string;
-  multicall?: string;
-  create2Deployer?: string;
+  NativeToken: string;
+  WETH?: string;
+  L2ToL1MessagePasser?: string;
+  DeployerWhitelist?: string;
+  L2CrossDomainMessenger?: string;
+  GasPriceOracle?: string;
+  L2StandardBridge?: string;
+  SequencerFeeVault?: string;
+  OptimismMintableERC20Factory?: string;
+  L1BlockNumber?: string;
+  L1Block?: string;
+  GovernanceToken?: string;
+  LegacyMessagePasser?: string;
+  L2ERC721Bridge?: string;
+  OptimismMintableERC721Factory?: string;
+  ProxyAdmin?: string;
+  BaseFeeVault?: string;
+  L1FeeVault?: string;
+  ETH?: string;
+  L2UsdcBridge?: string;
+  L2Usdc?: string;
+  WrappedETH?: string;
+  PolygonZkEVMBridge?: string;
+  PolygonZkEVMGlobalExitRoot?: string;
+  Multicall?: string;
+  Create2Deployer?: string;
 }
 
 export interface Bridge {
@@ -186,7 +206,6 @@ export interface CheckerConfig {
   timeout: number;
   retryCount: number;
   networks: string[];
-  metadataRepoUrl: string;
 }
 
 export interface L2BasicInfo {

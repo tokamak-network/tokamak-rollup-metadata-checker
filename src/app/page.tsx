@@ -20,6 +20,7 @@ export default function Dashboard() {
   // L2 기본 정보 가져오기
   const fetchL2List = useCallback(async () => {
     try {
+      console.log('🔄 Starting fetchL2List, setting loading to true');
       setL2sLoading(true);
       setError(null);
 
@@ -29,11 +30,14 @@ export default function Dashboard() {
       }
 
       const data = await response.json();
+      console.log('✅ fetchL2List success, data length:', data.length);
       setAvailableL2s(data);
       setL2ListLastUpdated(new Date());
     } catch (err) {
+      console.error('❌ fetchL2List error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
+      console.log('🏁 fetchL2List finally, setting loading to false');
       setL2sLoading(false);
     }
   }, []);
