@@ -16,19 +16,26 @@ export async function verifyL2ContractBytecode({
   l2ChainId: number;
 }) {
   await l2BytecodeCache.initialize();
-  console.log('name', name);
+  // console.log('name', name);
 
-  if(name === 'wrappedETH' || name === 'WrappedETH') {
+  if(name === 'wrappedETH' || name === 'WrappedETH' || name === 'WNativeToken' ) {
     name = 'WETH';
   }
 
-  // 1. 받은 name 의 프록시 타입 조회
-  const proxyType = CONTRACT_PROXY_TYPE_MAP[name as keyof typeof CONTRACT_PROXY_TYPE_MAP];
-  console.log('proxyType', proxyType);
+  if (name === 'NativeToken' || name === 'nativeToken' ) {
+    name = 'LegacyERC20NativeToken';
+  }
 
-  // 프록시 타입 맵에 존재하는 컨트랙이면 프록시 주소라고 인지한다.
-  const isProxy = Object.values(CONTRACT_PROXY_TYPE_MAP).includes(proxyType);
-  console.log('isProxy', isProxy);
+  let isProxy = true;
+  const proxyType = "Proxy"
+
+  // 1. L2 contracts use proxy pattern except WETH (WNativeToken) and GovernanceToken
+  if (name === 'WETH' || name === 'GovernanceToken' || name === 'LegacyERC20NativeToken' || name === 'ETH' ) {
+    isProxy = false;
+  }
+
+  // console.log('proxyType', proxyType);
+  // console.log('isProxy', isProxy);
 
   // Always get chainId from RPC
   const provider = new ethers.JsonRpcProvider(rpcUrl);
@@ -60,6 +67,7 @@ export async function verifyL2ContractBytecode({
       chainIdSource,
     }
   } else {
+
     // 2. 프록시의 바이트 조회
     const proxyBytecode = await getBytecodeByProxyType(proxyType);
     // console.log('proxyBytecode', proxyBytecode);
@@ -78,14 +86,14 @@ export async function verifyL2ContractBytecode({
     ? onchainBytecode.toLowerCase() === proxyBytecode.toLowerCase()
     : false;
 
-    console.log('isProxyMatch:', isProxyMatch);
+    // console.log('isProxyMatch:', isProxyMatch);
     let isImplementationMatch = false;
     // 5. 프록시 바이트코드 비교 결과에 따라 구현체 바이트코드 비교
     if (isProxyMatch) {
-      console.log('address: ', address);
+      // console.log('address: ', address);
       // 5.1 구현체 로직 주소 조회
       const implementationAddress = await getProxyImplementation(address, rpcUrl);
-      console.log('implementationAddress', implementationAddress);
+      // console.log('implementationAddress', implementationAddress);
 
       // 5.2 구현체 바이트코드 조회
       const implementationBytecode = await provider.getCode(implementationAddress as string);
@@ -93,16 +101,17 @@ export async function verifyL2ContractBytecode({
 
       // 5.3 구현체 바이트코드 캐시 비교
       const refImplBytecode = l2BytecodeCache.getBytecode(name);
+      // console.log('refImplBytecode', refImplBytecode);
       isImplementationMatch = refImplBytecode && implementationBytecode
       ? implementationBytecode.toLowerCase() === refImplBytecode.toLowerCase()
       : false;
 
-      console.log('isImplementationMatch', isImplementationMatch);
+      // console.log('isImplementationMatch', isImplementationMatch);
     }
 
     const match = isProxyMatch && isImplementationMatch;
 
-    // console.log('matched', isProxyMatch);
+    // console.log('matched', match);
     return {
       contract: name,
       isProxy,

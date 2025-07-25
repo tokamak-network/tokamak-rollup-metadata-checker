@@ -115,10 +115,31 @@ describe('verifyL2ContractBytecode', () => {
       rpcUrl,
       l2ChainId
     });
-    console.log(result);
+    // console.log(result);
 
     expect(typeof result.match).toBe('boolean');
     expect(result.contract).toBe('WETH');
+    expect(typeof result.match).toBe('boolean');
+    expect(result.match).toEqual(true);
+  });
+
+
+  it('should compare NativeToken bytecode with reference', async () => {
+    const rpcUrl = 'http://k8s-opgeth-0ff8d5f51e-1101864706.ap-northeast-2.elb.amazonaws.com';
+    const address = '0xDeadDeAddeAddEAddeadDEaDDEAdDeaDDeAD0000';
+    const name = 'NativeToken';
+    const l2ChainId = 111551204981;
+
+    const result = await verifyL2ContractBytecode({
+      name,
+      address,
+      rpcUrl,
+      l2ChainId
+    });
+    // console.log(result);
+
+    expect(typeof result.match).toBe('boolean');
+    expect(result.contract).toBe('LegacyERC20NativeToken');
     expect(typeof result.match).toBe('boolean');
     expect(result.match).toEqual(true);
   });

@@ -53,9 +53,14 @@ export async function verifyL1ContractBytecodeWithCache({
     }
 
     const refImplBytecode = l1BytecodeCache.getBytecode(name);
+    // console.log('refImplBytecode', refImplBytecode);
+
     const match = refImplBytecode && onchainBytecode
                   ? onchainBytecode.toLowerCase() === refImplBytecode.toLowerCase()
                   : false;
+
+    // console.log('match', match);
+
     return {
       contract: name,
       isProxy,
@@ -101,6 +106,7 @@ export async function verifyL1ContractBytecodeWithCache({
 
       // 5.3 구현체 바이트코드 캐시 비교
       const refImplBytecode = l1BytecodeCache.getBytecode(name);
+      // console.log('refImplBytecode', refImplBytecode);
       isImplementationMatch = refImplBytecode && implementationBytecode
       ? implementationBytecode.toLowerCase() === refImplBytecode.toLowerCase()
       : false;
