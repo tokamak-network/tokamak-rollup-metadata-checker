@@ -3,6 +3,7 @@ import { CANDIDATE_ADD_ON_ABI } from './abi/candidate-add-on';
 import { OPERATOR_MANAGER_ABI } from './abi/operator-manager';
 import { ERC20_ABI } from './abi/erc20';
 import { SYSTEM_CONFIG_ABI } from './abi/system-config';
+import { L1_FEE_VAULT_ABI } from './abi/l1-fee-vault';
 import { fetchOfficialDeployment } from './official-deployment';
 
 import { CONTRACT_PROXY_TYPE_MAP } from '../config/index';
@@ -15,6 +16,7 @@ export const CONTRACT_ABI_MAP = {
   'operator-manager': OPERATOR_MANAGER_ABI,
   'erc20': ERC20_ABI,
   'system-config': SYSTEM_CONFIG_ABI,
+  'l1-fee-vault': L1_FEE_VAULT_ABI,
   'default': CANDIDATE_ADD_ON_ABI
 };
 
