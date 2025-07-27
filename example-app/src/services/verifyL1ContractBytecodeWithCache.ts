@@ -42,7 +42,7 @@ export async function verifyL1ContractBytecodeWithCache({
 
   // 프록시 이름이 L1 컨트랙 목록에 있는지 확인
   const isProxy = L1_CONTRACT_NAMES.includes(proxyName);
-  // console.log('isProxy', isProxy);
+  console.log('isProxy', isProxy, '====================');
 
   if(!isProxy) {
     let onchainBytecode = '';
@@ -51,6 +51,8 @@ export async function verifyL1ContractBytecodeWithCache({
     } catch (e) {
       throw new Error('Failed to fetch onchain bytecode: ' + (e instanceof Error ? e.message : e));
     }
+
+    // console.log('onchainBytecode', onchainBytecode);
 
     const refImplBytecode = l1BytecodeCache.getBytecode(name);
     // console.log('refImplBytecode', refImplBytecode);
