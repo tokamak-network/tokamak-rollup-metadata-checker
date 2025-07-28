@@ -4,7 +4,6 @@ import { CONTRACT_PROXY_TYPE_MAP } from '@/config/index';
 import { getBytecodeByProxyType } from '@/utils/official-deployment';
 import { getProxyImplementation } from '@/utils/abi';
 import { L1_FEE_VAULT_ABI } from '@/utils/abi/l1-fee-vault';
-
 import { getRpcUrl } from '@/utils/rpc';
 
 export async function verifyL2ContractBytecode({
@@ -73,7 +72,7 @@ export async function verifyL2ContractBytecode({
 
     // 2. 프록시의 바이트 조회
     const proxyBytecode = await getBytecodeByProxyType(proxyType);
-    console.log('proxyBytecode', name, proxyBytecode);
+    // console.log('proxyBytecode', name, proxyBytecode);
 
     // 3. 입력받은 주소의 바이트코드 조회
     let onchainBytecode = '';
@@ -82,34 +81,54 @@ export async function verifyL2ContractBytecode({
     } catch (e) {
       throw new Error('Failed to fetch onchain bytecode: ' + (e instanceof Error ? e.message : e));
     }
-    console.log('Proxy onchainBytecode', name, onchainBytecode);
+    // console.log('Proxy onchainBytecode', name, onchainBytecode);
 
     // 4. 프록시 바이트코드 비교
     const isProxyMatch = onchainBytecode && proxyBytecode
     ? onchainBytecode.toLowerCase() === proxyBytecode.toLowerCase()
     : false;
 
-    console.log('isProxyMatch:', isProxyMatch);
+    // console.log('isProxyMatch:', isProxyMatch);
     let isImplementationMatch = false;
     // 5. 프록시 바이트코드 비교 결과에 따라 구현체 바이트코드 비교
     if (isProxyMatch) {
       // console.log('address: ', address);
       // 5.1 구현체 로직 주소 조회
       const implementationAddress = await getProxyImplementation(address, rpcUrl);
-      console.log('implementationAddress', name, implementationAddress);
+      // console.log('implementationAddress', name, implementationAddress);
 
       // 5.2 구현체 바이트코드 조회
       const implementationBytecode = await provider.getCode(implementationAddress as string);
-      console.log('implementationBytecode', name, implementationBytecode);
+      // console.log('implementationBytecode', name, implementationBytecode);
 
       // 5.3 구현체 바이트코드 캐시 비교
       const refImplBytecode = l2BytecodeCache.getBytecode(name);
-      console.log('refImplBytecode', name, refImplBytecode);
-      isImplementationMatch = refImplBytecode && implementationBytecode
-      ? implementationBytecode.toLowerCase() === refImplBytecode.toLowerCase()
-      : false;
+      // console.log('refImplBytecode', name, refImplBytecode);
 
-      console.log('isImplementationMatch', isImplementationMatch);
+      if (name === 'L1FeeVault') {
+        isImplementationMatch = await compareL1FeeVaultBytecode({
+          onchainBytes: implementationBytecode,
+          gitBytes: refImplBytecode as string
+        });
+
+      } else if (name === 'SequencerFeeVault') {
+        isImplementationMatch = await compareSequencerFeeVaultBytecode({
+          onchainBytes: implementationBytecode,
+          gitBytes: refImplBytecode as string
+        });
+
+      } else if (name === 'BaseFeeVault') {
+        isImplementationMatch = await compareBaseFeeVaultBytecode({
+          onchainBytes: implementationBytecode,
+          gitBytes: refImplBytecode as string
+        });
+      } else {
+        isImplementationMatch = refImplBytecode && implementationBytecode
+        ? implementationBytecode.toLowerCase() === refImplBytecode.toLowerCase()
+        : false;
+      }
+
+      // console.log('isImplementationMatch', isImplementationMatch);
     }
 
     const match = isProxyMatch && isImplementationMatch;

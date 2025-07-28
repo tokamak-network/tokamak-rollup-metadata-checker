@@ -42,7 +42,7 @@ export async function verifyL1ContractBytecodeWithCache({
 
   // 프록시 이름이 L1 컨트랙 목록에 있는지 확인
   const isProxy = L1_CONTRACT_NAMES.includes(proxyName);
-  console.log('isProxy', isProxy, '====================');
+  // console.log('isProxy', isProxy, '====================');
 
   if(!isProxy) {
     let onchainBytecode = '';
