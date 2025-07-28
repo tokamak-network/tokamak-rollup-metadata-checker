@@ -23,7 +23,7 @@ This document summarizes the five key categories of information that people want
 
 ## 2. Show me the operational status of this chain. [[prompt-operational-status](./prompts/operational-status.md)]
 - Current operational status (Active/Inactive/Maintenance, etc.)
-- Block time, gas limit, actual block/gas status
+- Block time interval (average seconds between consecutive blocks), gas limit, actual block/gas status
 - Explorer/bridge operational status
 
 ---
@@ -32,7 +32,7 @@ This document summarizes the five key categories of information that people want
 - Consistency between SystemConfig contract addresses and metadata addresses
 - Latest batch time, latest rollup time
 - Compare TON balance on chain vs. bridge
-- Whether rollup interval, block time, etc. match the configured values
+- Whether rollup interval, block time interval, etc. match the configured values
 
 ---
 

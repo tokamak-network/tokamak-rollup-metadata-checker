@@ -4,7 +4,7 @@
 - Status info, network config
 
 ## What to check/process
-- Actual block time, gas limit (on-chain)
+- Actual block time interval (average seconds between consecutive blocks), gas limit (on-chain)
 - Real-time explorer/bridge status
 
 ## Example LLM questions

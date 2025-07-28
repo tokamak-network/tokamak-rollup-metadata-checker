@@ -6,7 +6,7 @@ This project is a tool to verify the validity of L2 rollup information registere
 
 The UI displays the following L2 metadata and status information at a glance:
 - L2 name, description, logo, network, chain ID
-- L2/L1 block height, block time, gas limit, last proposal/batch time
+- L2/L1 block height, block time interval (average seconds between consecutive blocks), gas limit, last proposal/batch time
 - Service status for RPC, block explorer, bridge, staking, etc.
 - Key L1/L2 contract addresses (with copy/explorer links)
 - Staking candidate/operator/manager info, memo, registration transaction, etc.
@@ -15,7 +15,7 @@ The UI displays the following L2 metadata and status information at a glance:
 ## ✨ Features
 
 - **L2 metadata and status check**: On the main screen, select an L2 to view its metadata and real-time status (block, sequencer, contract, etc.)
-  - Example: L2 name, description, network, chain ID, block height, block time, gas limit, proposal/batch time, service (RPC/explorer/bridge/staking) status, contract addresses, staking info, etc.
+  - Example: L2 name, description, network, chain ID, block height, block time interval, gas limit, proposal/batch time, service (RPC/explorer/bridge/staking) status, contract addresses, staking info, etc.
 - **L1/L2 contract official deployment verification**: Verifies that L1/L2 contracts (including proxies/implementations) associated with the L2 match the official Tokamak deployment bytecode
 - **Proxy type awareness**: Extracts implementation/admin addresses and compares bytecode according to proxy structure
 - **API endpoint**: Next.js-based L1 contract verification API

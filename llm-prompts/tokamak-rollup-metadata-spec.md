@@ -567,7 +567,7 @@ This document defines the JSON schema for rollup metadata, including all require
 ```
 
 **Network Configuration Properties:**
-- `blockTime`: L2 block time in seconds
+- `blockTime`: Average time interval between consecutive L2 blocks in seconds (e.g., 2 means a new block is created every 2 seconds on average)
 - `gasLimit`: Block gas limit
 - `baseFeePerGas`: Base fee per gas (optional)
 - `priorityFeePerGas`: Priority fee per gas (optional)

@@ -293,7 +293,8 @@ export async function getLatestBlocks(l2RpcUrl: string, l1ChainId: number = 1): 
 }
 
 /**
- * Get actual block time by calculating average from recent blocks
+ * Get actual block time by calculating average interval between consecutive blocks from recent blocks
+ * Returns the average time interval in seconds between consecutive L2 blocks
  */
 export async function getActualBlockTime(rpcUrl: string): Promise<number> {
   // RPC URL 유효성 검사
@@ -304,6 +305,7 @@ export async function getActualBlockTime(rpcUrl: string): Promise<number> {
 
   try {
     const latestBlockNumber = await getLatestBlockNumber(rpcUrl);
+    // console.log('latestBlockNumber', latestBlockNumber);
     const blockCount = 10; // 최근 10개 블록으로 평균 계산
 
     const blockPromises = [];
@@ -311,8 +313,9 @@ export async function getActualBlockTime(rpcUrl: string): Promise<number> {
       const blockNumber = `0x${(latestBlockNumber - i).toString(16)}`;
       blockPromises.push(makeRpcCall(rpcUrl, 'eth_getBlockByNumber', [blockNumber, false]));
     }
-
+    // console.log('blockPromises', blockPromises);
     const blocks = await Promise.all(blockPromises);
+    // console.log('blocks', blocks);
 
     // 블록 시간 차이 계산
     const timeDiffs = [];
@@ -321,10 +324,15 @@ export async function getActualBlockTime(rpcUrl: string): Promise<number> {
       const previousTime = parseInt(blocks[i + 1].timestamp, 16);
       timeDiffs.push(currentTime - previousTime);
     }
+    // console.log('timeDiffs', timeDiffs);
 
     // 평균 계산 (초 단위)
     const avgBlockTime = timeDiffs.reduce((sum, diff) => sum + diff, 0) / timeDiffs.length;
-    return Math.round(avgBlockTime * 10) / 10; // 소수점 1자리
+    const result = Math.round(avgBlockTime * 10) / 10; // 소수점 1자리
+
+    // console.log(`🔍 Block Time Calculation - timeDiffs: ${JSON.stringify(timeDiffs)}, avgBlockTime: ${avgBlockTime}, result: ${result}`);
+
+    return result;
 
   } catch (error) {
     console.error(`Failed to calculate actual block time for ${rpcUrl}:`, error);

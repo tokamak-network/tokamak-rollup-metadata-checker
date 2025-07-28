@@ -5,7 +5,7 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const contracts = Array.isArray(body.contracts) ? body.contracts : [body];
-    console.log('contracts', contracts);
+    // console.log('contracts', contracts);
     const results = [];
     for (const c of contracts) {
       const network = c.chainId === 1 ? 'mainnet' : 'sepolia';
@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
         results.push({ contractName: c.name, error: err instanceof Error ? err.message : String(err) });
       }
     }
-    console.log('results', results);
+    // console.log('results', results);
     return NextResponse.json({ results });
   } catch (error) {
     return NextResponse.json({ error: error instanceof Error ? error.message : 'Unknown error' }, { status: 500 });

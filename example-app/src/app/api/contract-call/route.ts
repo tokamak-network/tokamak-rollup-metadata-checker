@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createContract, findFunctionABI, getFunctionParamCount } from '@/utils/abi';
-import { getRpcUrl } from '@/utils/rpc';
+import { getRpcUrl, getActualBlockTime, getActualGasLimit } from '@/utils/rpc';
 import { ethers } from 'ethers';
 
 export async function GET(request: NextRequest) {
@@ -169,29 +169,21 @@ export async function POST(request: NextRequest) {
     // 새 기능: L2 Gas Limit, L2 Block Time 조회
     if (mode === 'gasAndBlockTime') {
       try {
+        // getActualBlockTime과 getActualGasLimit 함수 사용
+        const [actualBlockTime, actualGasLimit] = await Promise.all([
+          getActualBlockTime(rpcUrl),
+          getActualGasLimit(rpcUrl)
+        ]);
+
+        // 최신 블록 번호도 가져오기
         const provider = new ethers.JsonRpcProvider(rpcUrl);
-        // 최신 블록
         const latestBlock = await provider.getBlock('latest');
-        if (!latestBlock) {
-          return NextResponse.json({ success: false, error: 'Failed to fetch latest block' });
-        }
-        // 이전 블록 (parentHash로 직접 조회)
-        const prevBlock = await provider.getBlock(latestBlock.number - 1);
-        if (!prevBlock) {
-          return NextResponse.json({ success: false, error: 'Failed to fetch previous block' });
-        }
-        // Gas Limit
-        const gasLimit = latestBlock.gasLimit.toString();
-        // Block Time (초)
-        let blockTime = null;
-        if (latestBlock.timestamp && prevBlock.timestamp) {
-          blockTime = latestBlock.timestamp - prevBlock.timestamp;
-        }
+
         return NextResponse.json({
           success: true,
-          gasLimit,
-          blockTime,
-          latestBlock: latestBlock.number,
+          gasLimit: actualGasLimit.toString(),
+          blockTime: actualBlockTime,
+          latestBlock: latestBlock?.number || 0,
         });
       } catch (e) {
         return NextResponse.json({ success: false, error: e instanceof Error ? e.message : e });

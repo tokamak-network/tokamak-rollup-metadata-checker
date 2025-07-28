@@ -203,6 +203,8 @@ export async function GET(
       errors: []
     };
 
+    console.log(`🔍 API Response - actualBlockTime: ${actualBlockTime}, type: ${typeof actualBlockTime}`);
+
     return NextResponse.json({
       metadata,
       status: rollupStatus,
