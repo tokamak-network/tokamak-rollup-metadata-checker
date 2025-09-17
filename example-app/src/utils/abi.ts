@@ -75,7 +75,10 @@ export function getFunctionParamTypes(functionNameOrSignature: string, contractT
  * @returns ethers Contract 인스턴스
  */
 export function createContract(address: string, rpcUrl: string, contractType?: string): ethers.Contract {
-  const provider = new ethers.JsonRpcProvider(rpcUrl);
+  const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+    staticNetwork: true,
+    polling: false // 폴링 비활성화로 에러 로그 감소
+  });
   const abi = contractType ? CONTRACT_ABI_MAP[contractType as keyof typeof CONTRACT_ABI_MAP] : CANDIDATE_ADD_ON_ABI;
 
   return new ethers.Contract(address, abi, provider);

@@ -128,7 +128,7 @@ export async function verifyL2ContractBytecode({
         : false;
       }
 
-      // console.log('isImplementationMatch', isImplementationMatch);
+      console.log('isImplementationMatch', isImplementationMatch);
     }
 
     const match = isProxyMatch && isImplementationMatch;

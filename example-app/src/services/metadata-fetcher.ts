@@ -1,5 +1,5 @@
 import { RollupMetadata } from '../types/metadata';
-import { fetchGithubDirItemsFromHtml , fetchGithubMetadataFromHtml} from '@/utils/git-crawling';
+import { fetchGithubDirItemsFromHtml, fetchGithubDirItemsFromApi, fetchGithubMetadataFromHtml} from '@/utils/git-crawling';
 
 export class MetadataFetcher {
   private readonly jsDelivrApiUrl: string;
@@ -23,9 +23,8 @@ export class MetadataFetcher {
 
   // fetchAllMetadata에서 주소 소스를 명시적으로 선택할 수 있도록 수정
   async fetchAllMetadata(network: string): Promise<RollupMetadata[]> {
-    // 1. GitHub Contents API 시도
-    // let l2Addresses = await this.getL2AddressesFromGitHub(network);
-    let l2Addresses = await fetchGithubDirItemsFromHtml(network);
+    // GitHub API를 사용하여 디렉토리 목록을 가져온다 (더 안정적이고 빠름)
+    let l2Addresses = await fetchGithubDirItemsFromApi(network);
 
     console.log(`📋 Found ${l2Addresses.length} L2s in ${network}:`, l2Addresses);
 

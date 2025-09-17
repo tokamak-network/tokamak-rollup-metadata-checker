@@ -18,7 +18,10 @@ async function checkRpcHealth(rpcUrl: string): Promise<{rpcStatus: 'healthy' | '
   }
 
   try {
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+      staticNetwork: true,
+      polling: false // 폴링 비활성화로 에러 로그 감소
+    });
     let blockNumber, block, gasLimit, blockTime;
     try {
       blockNumber = await provider.getBlockNumber();
@@ -36,7 +39,7 @@ async function checkRpcHealth(rpcUrl: string): Promise<{rpcStatus: 'healthy' | '
     }
   } catch (error) {
     rpcStatus = 'unhealthy';
-    errors.push(error instanceof Error ? e.message : String(e));
+    errors.push(error instanceof Error ? error.message : String(error));
   }
 
   return { rpcStatus, errors };

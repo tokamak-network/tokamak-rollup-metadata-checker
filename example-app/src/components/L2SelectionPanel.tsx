@@ -37,9 +37,10 @@ export function L2SelectionPanel({
                          l2.systemConfigAddress.toLowerCase().includes(searchTerm.toLowerCase());
       const statusMatch = statusFilter === 'all' || l2.status === statusFilter;
       const networkMatch = networkFilter === 'all' || l2.l1ChainId.toString() === networkFilter;
+
       return searchMatch && statusMatch && networkMatch;
     });
-    console.log('filtered', filtered);
+
     // 네트워크별로 그룹화
     const grouped = filtered.reduce((acc, l2) => {
       const networkKey = `${l2.l1ChainId}-${getNetworkName(l2.l1ChainId)}`;
@@ -73,6 +74,11 @@ export function L2SelectionPanel({
 
   // 사용 가능한 네트워크 목록 (주요 네트워크는 항상 표시)
   const availableNetworks = useMemo(() => {
+    // availableL2s가 비어있으면 빈 배열 반환 (초기 로딩 중)
+    if (availableL2s.length === 0) {
+      return [];
+    }
+
     const dataNetworks = new Set(availableL2s.map(l2 => l2.l1ChainId));
     const allNetworks = new Set([1, 11155111, ...dataNetworks]); // 메인넷과 세폴리아는 항상 포함
 
@@ -173,7 +179,7 @@ export function L2SelectionPanel({
 
       {/* L2 목록 */}
       <div className="flex-1 overflow-auto p-4">
-        {loading ? (
+        {loading || availableL2s.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <LoadingSpinner text="Loading L2s..." />
           </div>

@@ -7,7 +7,10 @@ export async function POST(request: NextRequest) {
     if (!rpcUrl) {
       return NextResponse.json({ healthy: false, error: 'rpcUrl is required' }, { status: 400 });
     }
-    const provider = new ethers.JsonRpcProvider(rpcUrl);
+    const provider = new ethers.JsonRpcProvider(rpcUrl, undefined, {
+      staticNetwork: true,
+      polling: false // 폴링 비활성화로 에러 로그 감소
+    });
     let blockNumber, block, gasLimit, blockTime;
     try {
       blockNumber = await provider.getBlockNumber();

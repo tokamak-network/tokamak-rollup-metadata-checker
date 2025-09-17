@@ -108,31 +108,31 @@ export function validateL2Status(status: L2Status): string[] {
     errors.push('Latest L1 block cannot be negative');
   }
 
-  if (status.lastProposalTime < 0) {
+  if (status.lastProposalTime !== undefined && status.lastProposalTime < 0) {
     errors.push('Last proposal time cannot be negative');
   }
 
-  if (status.lastBatchTime < 0) {
+  if (status.lastBatchTime !== undefined && status.lastBatchTime < 0) {
     errors.push('Last batch time cannot be negative');
   }
 
   const validSequencerStatuses = ['active', 'inactive', 'unknown'];
-  if (!validSequencerStatuses.includes(status.sequencerStatus)) {
+  if (status.sequencerStatus && !validSequencerStatuses.includes(status.sequencerStatus)) {
     errors.push('Invalid sequencer status');
   }
 
   const validProposerStatuses = ['active', 'inactive', 'unknown'];
-  if (!validProposerStatuses.includes(status.proposerStatus)) {
+  if (status.proposerStatus && !validProposerStatuses.includes(status.proposerStatus)) {
     errors.push('Invalid proposer status');
   }
 
   const validWithdrawalStatuses = ['normal', 'delayed', 'unknown'];
-  if (!validWithdrawalStatuses.includes(status.withdrawalDelayStatus)) {
+  if (status.withdrawalDelayStatus && !validWithdrawalStatuses.includes(status.withdrawalDelayStatus)) {
     errors.push('Invalid withdrawal delay status');
   }
 
   const validSystemConfigStatuses = ['active', 'paused', 'unknown'];
-  if (!validSystemConfigStatuses.includes(status.systemConfigStatus)) {
+  if (status.systemConfigStatus && !validSystemConfigStatuses.includes(status.systemConfigStatus)) {
     errors.push('Invalid system config status');
   }
 
@@ -142,7 +142,7 @@ export function validateL2Status(status: L2Status): string[] {
   }
 
   const validExplorerStatuses = ['healthy', 'unhealthy', 'unknown'];
-  if (!validExplorerStatuses.includes(status.explorerStatus)) {
+  if (status.explorerStatus && !validExplorerStatuses.includes(status.explorerStatus)) {
     errors.push('Invalid explorer status');
   }
 

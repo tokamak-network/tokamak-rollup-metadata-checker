@@ -3,6 +3,7 @@ import { Inter } from 'next/font/google';
 import './globals.css';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import ClientThemeToggle from '@/components/ClientThemeToggle';
+import '@/utils/ethers-config'; // ethers.js 로그 설정
 
 const inter = Inter({ subsets: ['latin'] });
 

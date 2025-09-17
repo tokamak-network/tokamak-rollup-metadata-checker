@@ -2,8 +2,8 @@ import {   METADATA_RAW_URL_TEMPLATE, METADATA_GITHUB_URL_TEMPLATE, L1_BYTECODE_
 
 
 export async function fetchAllMetadata(network: string): Promise<any[]> {
-    //fetchGithubDirItemsFromHtml  함수로 목록을 가져와서, 각 주소에 대해 내용을 fetchGithubMetadataFromHtml 함수로 가져온다.
-    const items = await fetchGithubDirItemsFromHtml(network);
+    // GitHub API를 사용하여 디렉토리 목록을 가져온다 (더 안정적이고 빠름)
+    const items = await fetchGithubDirItemsFromApi(network);
     // console.log('fetchAllMetadata items', items, network);
     if(items.length === 0) {
         return [];
@@ -20,7 +20,34 @@ export async function fetchAllMetadata(network: string): Promise<any[]> {
 }
 
 
-// Extracts the payload.tree.items array from the GitHub directory HTML page
+// GitHub API를 사용하여 디렉토리 내용을 가져오는 함수
+export async function fetchGithubDirItemsFromApi(network: string | null): Promise<string[]> {
+    if (network === null) network = 'sepolia';
+    const apiUrl = `https://api.github.com/repos/tokamak-network/tokamak-rollup-metadata-repository/contents/data/${network}`;
+
+    try {
+        const res = await fetch(apiUrl);
+        if (!res.ok) {
+            throw new Error(`GitHub API request failed: ${res.status}`);
+        }
+        const data = await res.json();
+
+        if (!Array.isArray(data)) {
+            throw new Error('API response is not an array');
+        }
+
+        // Return only file names without .json extension
+        return data
+            .filter((item: any) => item.type === 'file' && typeof item.name === 'string' && item.name.endsWith('.json'))
+            .map((item: any) => item.name.replace(/\.json$/, ''));
+    } catch (error) {
+        console.error('GitHub API fetch failed, falling back to HTML parsing:', error);
+        // API 실패 시 기존 HTML 파싱 방식으로 fallback
+        return fetchGithubDirItemsFromHtml(network);
+    }
+}
+
+// Extracts the payload.tree.items array from the GitHub directory HTML page (fallback method)
 export async function fetchGithubDirItemsFromHtml(network: string | null): Promise<string[]> {
     if (network === null) network = 'sepolia';
     const githubUrl = METADATA_GITHUB_URL_TEMPLATE.replace('{network}', network);

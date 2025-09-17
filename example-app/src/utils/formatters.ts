@@ -16,7 +16,7 @@ export function formatAsTable(data: L2Status[]): string {
     status.isActive ? '✅ Active' : '❌ Inactive',
     status.latestL2Block.toString(),
     status.latestL1Block.toString(),
-    getStatusIcon(status.sequencerStatus),
+    getStatusIcon(status.sequencerStatus || 'unknown'),
     getStatusIcon(status.rpcStatus),
     status.lastChecked.toISOString()
   ]);

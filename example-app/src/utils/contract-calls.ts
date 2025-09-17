@@ -24,9 +24,6 @@ export async function getContractTimestamps(
   l1ChainId: number
 ): Promise<ContractTimestamps> {
   try {
-    console.log(`🔍 Fetching contract timestamps for L1 Chain: ${l1ChainId}`);
-    console.log(`🔍 L2OutputOracle address: ${l2OutputOracleAddress}`);
-    console.log(`🔍 Sequencer address: ${sequencerAddress}`);
 
     // RPC URL 유효성 검사
     if (!isValidRpcUrl(l1RpcUrl)) {
@@ -39,29 +36,27 @@ export async function getContractTimestamps(
       throw new Error(`Invalid L2 RPC URL: ${l2RpcUrl}`);
     }
 
-    // L1 Provider 설정 (재시도 비활성화)
+    // L1 Provider 설정 (재시도 비활성화, 에러 로그 억제)
     const l1Provider = new ethers.JsonRpcProvider(l1RpcUrl, undefined, {
       staticNetwork: true,
       batchMaxCount: 1,
-      batchStallTime: 0
+      batchStallTime: 0,
+      polling: false // 폴링 비활성화로 에러 로그 감소
     });
-    console.log(`🔍 L1 RPC URL: ${l1RpcUrl}`);
 
-    // L2 Provider 설정 (재시도 비활성화)
+    // L2 Provider 설정 (재시도 비활성화, 에러 로그 억제)
     const l2Provider = new ethers.JsonRpcProvider(l2RpcUrl, undefined, {
       staticNetwork: true,
       batchMaxCount: 1,
-      batchStallTime: 0
+      batchStallTime: 0,
+      polling: false // 폴링 비활성화로 에러 로그 감소
     });
-    console.log(`🔍 L2 RPC URL: ${l2RpcUrl}`);
 
-    // 먼저 RPC 연결 테스트
+    // RPC 연결 테스트
     try {
-      const l1BlockNumber = await l1Provider.getBlockNumber();
-      const l2BlockNumber = await l2Provider.getBlockNumber();
-      console.log(`✅ RPC connection test - L1: ${l1BlockNumber}, L2: ${l2BlockNumber}`);
+      await l1Provider.getBlockNumber();
+      await l2Provider.getBlockNumber();
     } catch (error) {
-      console.error('❌ RPC connection failed:', error);
       throw error;
     }
 
@@ -205,7 +200,7 @@ export async function getEstimatedTimestamps(
     };
 
   } catch (error) {
-    
+
     console.error('❌ Error estimating timestamps:', error);
     return {
       lastProposalTime: 0,
