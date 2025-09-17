@@ -93,6 +93,83 @@ function compareMipsBytecode(onchainBytecode: string, refImplBytecode: string, p
   return finalResult;
 }
 
+function compareAnchorStateRegistryBytecode(onchainBytecode: string, refImplBytecode: string, disputeGameFactoryAddress: string): boolean {
+  // 0x 제거
+  const onchainClean = onchainBytecode.startsWith('0x') ? onchainBytecode.slice(2) : onchainBytecode;
+  const refImplClean = refImplBytecode.startsWith('0x') ? refImplBytecode.slice(2) : refImplBytecode;
+  const expectedAddress = disputeGameFactoryAddress.startsWith('0x') ? disputeGameFactoryAddress.slice(2).toLowerCase() : disputeGameFactoryAddress.toLowerCase();
+
+  // console.log('=== AnchorStateRegistry 바이트코드 포지션 검증 시작 ===');
+  // console.log('Expected preimageOracleAddress:', expectedAddress);
+  // console.log('Onchain bytecode length:', onchainClean.length);
+  // console.log('RefImpl bytecode length:', refImplClean.length);
+
+  // console.log('Onchain bytecode:', onchainClean);
+
+
+  // 알려진 주소 포지션들 (hex character positions)
+  let positions = [
+    { start: 798, end: 798+40 },      // 첫 번째 주소 위치
+    { start: 1680, end: 1680+40 },    // 두 번째 주소 위치
+    { start: 4616, end: 4616+40 },
+  ];
+
+  // 1. onchainBytecode의 포지션 값이 preimageOracleAddress와 일치하는지 검증
+  // console.log('\n--- 포지션별 주소 검증 ---');
+  let addressValidationPassed = true;
+
+  // positions.forEach((pos, index) => {
+  //   const onchainAddressAtPos = onchainClean.substring(pos.start, pos.end).toLowerCase();
+  //   console.log(`Position ${index + 1} (${pos.start}-${pos.end}):`);
+  //   console.log(`  Onchain address: ${onchainAddressAtPos}`);
+  //   console.log(`  Expected address: ${expectedAddress}`);
+  //   console.log(`  Match: ${onchainAddressAtPos === expectedAddress}`);
+
+  //   if (onchainAddressAtPos !== expectedAddress) {
+  //     addressValidationPassed = false;
+  //   }
+  // });
+
+  // console.log(`\Address verification results: ${addressValidationPassed ? 'PASS' : 'FAIL'}`);
+
+  // 첫 번째 검증이 실패하면 바로 false 반환
+  if (!addressValidationPassed) {
+    // console.log('\n=== 주소 검증 실패로 인한 조기 종료 ===');
+    return false;
+  }
+
+  // 2. 포지션 안의 주소를 0으로 바꾸고 전체 바이트코드 비교
+  // console.log('\n--- 포지션을 0으로 바꾸고 비교 ---');
+
+  // 포지션 안의 주소를 0으로 바꾸는 함수
+  function replacePositionsWithZero(bytecode: string): string {
+    let result = bytecode;
+    positions.forEach((pos, index) => {
+      const beforePos = result.substring(0, pos.start);
+      const afterPos = result.substring(pos.end);
+      const zeroAddress = '0000000000000000000000000000000000000000'; // 20바이트 = 40 hex characters
+      result = beforePos + zeroAddress + afterPos;
+      // console.log(`포지션 ${index + 1} (${pos.start}-${pos.end})을 0으로 교체`);
+    });
+    return result;
+  }
+
+  // 두 바이트코드 모두에서 포지션을 0으로 바꾸기
+  const onchainWithZero = replacePositionsWithZero(onchainClean);
+  const refImplWithZero = replacePositionsWithZero(refImplClean);
+
+  // console.log('Onchain with zero positions length:', onchainWithZero.length);
+  // console.log('RefImpl with zero positions length:', refImplWithZero.length);
+
+  // 전체 바이트코드 비교
+  const byteComparisonPassed = onchainWithZero.toLowerCase() === refImplWithZero.toLowerCase();
+  // console.log(`\n바이트 비교 결과: ${byteComparisonPassed ? 'PASS' : 'FAIL'}`);
+
+  const finalResult = addressValidationPassed && byteComparisonPassed;
+  // console.log(`\n=== 최종 검증 결과: ${finalResult ? 'PASS' : 'FAIL'} ===`);
+
+  return finalResult;
+}
 
 export async function verifyL1ContractBytecodeWithCache({
   name,
@@ -101,6 +178,7 @@ export async function verifyL1ContractBytecodeWithCache({
   address,
   proxyAdminAddress = null,
   preimageOracleAddress = null,
+  disputeGameFactoryAddress = null,
 }: {
   name: string;
   network: string;
@@ -108,6 +186,7 @@ export async function verifyL1ContractBytecodeWithCache({
   address: string;
   proxyAdminAddress?: string | null;
   preimageOracleAddress?: string | null;
+  disputeGameFactoryAddress?: string | null;
 }) {
   await l1BytecodeCache.initialize();
 
@@ -117,7 +196,8 @@ export async function verifyL1ContractBytecodeWithCache({
   //   rpcUrl,
   //   address,
   //   proxyAdminAddress,
-  //   preimageOracleAddress
+  //   preimageOracleAddress,
+  //   disputeGameFactoryAddress
   // });
 
   if(!rpcUrl) {
@@ -129,9 +209,10 @@ export async function verifyL1ContractBytecodeWithCache({
 
   name = name.charAt(0).toUpperCase() + name.slice(1);
 
-  console.log('name', name);
-  console.log('proxyAdminAddress', proxyAdminAddress);
-  console.log('preimageOracleAddress', preimageOracleAddress);
+  // console.log('name', name);
+  // console.log('proxyAdminAddress', proxyAdminAddress);
+  // console.log('preimageOracleAddress', preimageOracleAddress);
+  // console.log('disputeGameFactoryAddress', disputeGameFactoryAddress);
 
   if (name === 'L1CrossDomainMessenger' && ( proxyAdminAddress == null || !isValidAddress(proxyAdminAddress)) ) {
     // 프록시 어드민을 통해서 로직 주소를 조회해야 한다. 파리미터로 프록시 어드민 주소를 꼭 받아야만 가능하다.
@@ -140,13 +221,13 @@ export async function verifyL1ContractBytecodeWithCache({
 
   // 1. 받은 name 의 이름 뒤에 Proxy 라는 단어를 붙인것이 L1 컨트랙 목록에 있으면 그것이 프록시 컨트랙 이름임
   const proxyName = name + 'Proxy';
-  // console.log('proxyName', proxyName);
+  console.log('proxyName', proxyName);
 
   // 프록시 이름이 L1 컨트랙 목록에 있는지 확인
   const isProxy = L1_CONTRACT_NAMES.includes(proxyName);
-  // console.log('isProxy', isProxy);
+  console.log('isProxy', isProxy);
   // console.log('L1_CONTRACT_NAMES', L1_CONTRACT_NAMES);
-  // console.log('name', name); // 여기로 이동
+  console.log('name', name); // 여기로 이동
 
   if(!isProxy) {
     let onchainBytecode = '';
@@ -188,6 +269,7 @@ export async function verifyL1ContractBytecodeWithCache({
       chainId: actualChainId
     }
   } else {
+
      // 2. 프록시 이름으로 L1 컨트랙 바이트 조회, 첫문자는 대문자
     const proxyBytecode = l1BytecodeCache.getBytecode(proxyName);
     // console.log('proxyBytecode', proxyBytecode);
@@ -199,13 +281,14 @@ export async function verifyL1ContractBytecodeWithCache({
     } catch (e) {
       throw new Error('Failed to fetch onchain bytecode: ' + (e instanceof Error ? e.message : e));
     }
+    // console.log('onchainBytecode', onchainBytecode);
 
     // 4. 프록시 바이트코드 비교
     const isProxyMatch = onchainBytecode && proxyBytecode
     ? onchainBytecode.toLowerCase() === proxyBytecode.toLowerCase()
     : false;
 
-    // console.log('isProxyMatch:', isProxyMatch);
+    console.log('isProxyMatch:', isProxyMatch);
     let isImplementationMatch = false;
     // 5. 프록시 바이트코드 비교 결과에 따라 구현체 바이트코드 비교
     if (isProxyMatch) {
@@ -218,7 +301,7 @@ export async function verifyL1ContractBytecodeWithCache({
       } else {
         implementationAddress = await getProxyImplementation(address, rpcUrl);
       }
-      // console.log('implementationAddress', implementationAddress);
+      console.log('implementationAddress', implementationAddress);
 
       // 5.2 구현체 바이트코드 조회
       const implementationBytecode = await provider.getCode(implementationAddress as string);
@@ -227,11 +310,18 @@ export async function verifyL1ContractBytecodeWithCache({
       // 5.3 구현체 바이트코드 캐시 비교
       const refImplBytecode = l1BytecodeCache.getBytecode(name);
       // console.log('refImplBytecode', refImplBytecode);
-      isImplementationMatch = refImplBytecode && implementationBytecode
-      ? implementationBytecode.toLowerCase() === refImplBytecode.toLowerCase()
-      : false;
 
-      // console.log('isImplementationMatch', isImplementationMatch);
+      if (name === 'AnchorStateRegistry') {
+        isImplementationMatch = disputeGameFactoryAddress && refImplBytecode
+          ? compareAnchorStateRegistryBytecode(implementationBytecode, refImplBytecode, disputeGameFactoryAddress)
+          : false;
+      } else {
+        isImplementationMatch = refImplBytecode && implementationBytecode
+        ? implementationBytecode.toLowerCase() === refImplBytecode.toLowerCase()
+        : false;
+      }
+
+      console.log('isImplementationMatch', isImplementationMatch);
     }
 
     const match = isProxyMatch && isImplementationMatch;

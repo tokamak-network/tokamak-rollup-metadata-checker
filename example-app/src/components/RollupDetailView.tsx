@@ -256,7 +256,8 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
               address,
               chainId: metadata.l1ChainId,
               proxyAdminAddress: metadata.l1Contracts.ProxyAdmin,
-              preimageOracleAddress: metadata.l1Contracts.PreimageOracle || null
+              preimageOracleAddress: metadata.l1Contracts.PreimageOracle || null,
+              disputeGameFactoryAddress: metadata.l1Contracts.DisputeGameFactory || null
             }],
             network: metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia',
             rpcUrl: metadata.l1ChainId === 1
@@ -325,6 +326,8 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
       const rpcUrl = metadata.l1ChainId === 1
         ? process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com'
         : process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://eth-sepolia.g.alchemy.com/v2/demo';
+      console.log('metadata.l1Contracts.DisputeGameFactory', metadata.l1Contracts.DisputeGameFactory);
+
       const res = await fetch('/api/l1-contract-verification', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -334,7 +337,8 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
             address,
             chainId: metadata.l1ChainId,
             proxyAdminAddress: metadata.l1Contracts.ProxyAdmin,
-            preimageOracleAddress: metadata.l1Contracts.PreimageOracle || null
+            preimageOracleAddress: metadata.l1Contracts.PreimageOracle || null,
+            disputeGameFactoryAddress: metadata.l1Contracts.DisputeGameFactory || null
           }],
           network,
           rpcUrl,

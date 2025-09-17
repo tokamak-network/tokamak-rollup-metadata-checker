@@ -22,7 +22,8 @@ export async function POST(request: NextRequest) {
           rpcUrl,
           address: c.address,
           proxyAdminAddress: c.proxyAdminAddress,
-          preimageOracleAddress: c.preimageOracleAddress || body.preimageOracleAddress
+          preimageOracleAddress: c.preimageOracleAddress,
+          disputeGameFactoryAddress: c.disputeGameFactoryAddress
         });
         results.push(result);
       } catch (err) {
