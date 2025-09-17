@@ -4,8 +4,11 @@ import { verifyL1ContractBytecodeWithCache } from '@/services/verifyL1ContractBy
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
+    // console.log('API received body:', body);
+
     const contracts = Array.isArray(body.contracts) ? body.contracts : [body];
-    // console.log('contracts', contracts);
+    // console.log('API received body:', body);
+    // console.log('API received contracts:', contracts);
     const results = [];
     for (const c of contracts) {
       const network = c.chainId === 1 ? 'mainnet' : 'sepolia';
@@ -18,7 +21,8 @@ export async function POST(request: NextRequest) {
           network,
           rpcUrl,
           address: c.address,
-          proxyAdminAddress: c.proxyAdminAddress
+          proxyAdminAddress: c.proxyAdminAddress,
+          preimageOracleAddress: c.preimageOracleAddress || body.preimageOracleAddress
         });
         results.push(result);
       } catch (err) {

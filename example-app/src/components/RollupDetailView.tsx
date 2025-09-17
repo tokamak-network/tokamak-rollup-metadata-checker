@@ -69,7 +69,7 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
     try {
       // ethers를 사용하여 컨트랙트의 memo() 함수 호출
       const url = `/api/contract-call?address=${metadata.staking.candidateAddress}&chainId=${metadata.l1ChainId}&function=memo()&contractType=candidate-add-on`
-      console.log(url)
+      // console.log(url)
 
       const response = await fetch(url);
 
@@ -243,25 +243,37 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
 
       for (const [name, address] of entries) {
         if (cancelled) break;
+        // console.log('Processing contract:', { name, address });
         setL1VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: true, error: null } }));
         try {
           // Capitalize first letter of contract name
           const capitalized = name.charAt(0).toUpperCase() + name.slice(1);
+          // console.log('Capitalized name:', capitalized);
 
           const params = {
-            name: capitalized,
-            address,
-            chainId: metadata.l1ChainId,
-            proxyAdminAddress: metadata.l1Contracts.ProxyAdmin
+            contracts: [{
+              name: capitalized,
+              address,
+              chainId: metadata.l1ChainId,
+              proxyAdminAddress: metadata.l1Contracts.ProxyAdmin,
+              preimageOracleAddress: metadata.l1Contracts.PreimageOracle || null
+            }],
+            network: metadata.l1ChainId === 1 ? 'mainnet' : 'sepolia',
+            rpcUrl: metadata.l1ChainId === 1
+              ? process.env.NEXT_PUBLIC_ETHEREUM_RPC_URL || 'https://eth.llamarpc.com'
+              : process.env.NEXT_PUBLIC_SEPOLIA_RPC_URL || 'https://ethereum-sepolia-rpc.publicnode.com'
           }
-
+          // console.log('params:',params);
+          // console.log('🚀 Sending request to /api/l1-contract-verification');
           const res = await fetch('/api/l1-contract-verification', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(params),
           });
+          // console.log('📡 Response status:', res.status, res.statusText);
+
           const data = await res.json();
-          console.log('l1-contract-verification', params, data)
+          // console.log('l1-contract-verification', params, data)
           if (data.error) {
             setL1VerifyResults(prev => ({ ...prev, [name]: { result: null, loading: false, error: data.error } }));
           } else {
@@ -317,7 +329,13 @@ export function RollupDetailView({ metadata, status, actualStats: initialActualS
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          contracts: [{ name, address }],
+          contracts: [{
+            name,
+            address,
+            chainId: metadata.l1ChainId,
+            proxyAdminAddress: metadata.l1Contracts.ProxyAdmin,
+            preimageOracleAddress: metadata.l1Contracts.PreimageOracle || null
+          }],
           network,
           rpcUrl,
         }),
