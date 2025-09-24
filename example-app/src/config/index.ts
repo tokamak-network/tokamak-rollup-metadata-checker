@@ -38,11 +38,8 @@ export const METADATA_GITHUB_URL_TEMPLATE = `https://github.com/tokamak-network/
 
 export const METADATA_RAW_URL_TEMPLATE = `https://github.com/tokamak-network/tokamak-rollup-metadata-repository/blob/main/data/{network}/{address}.json`;
 
-export const L1_BYTECODE_RAW_URL_TEMPLATE =
-  'https://github.com/tokamak-network/tokamak-thanos/blob/fix/extract-implementation-prdeploys/packages/tokamak/contracts-bedrock/bytecode/l1/{contractName}.json';
-
-export const L2_BYTECODE_RAW_URL_TEMPLATE =
-  'https://github.com/tokamak-network/tokamak-thanos/blob/fix/extract-implementation-prdeploys/packages/tokamak/contracts-bedrock/bytecode/l2/{contractName}.json';
+export const L1_BYTECODE_RAW_URL_TEMPLATE = 'https://github.com/tokamak-network/tokamak-thanos/blob/main/packages/tokamak/contracts-bedrock/bytecode/l1/{contractName}.json';
+export const L2_BYTECODE_RAW_URL_TEMPLATE = 'https://github.com/tokamak-network/tokamak-thanos/blob/main/packages/tokamak/contracts-bedrock/bytecode/l2/{contractName}.json';
 
 export const L2_CONTRACT_NAMES = [
   "BaseFeeVault",
@@ -126,6 +123,7 @@ export const L1_CONTRACT_NAMES = [
   "OptimismPortal",
   "OptimismPortal2",
   "OptimismPortalProxy",
+  "PermissionedDelayedWETH",
   "PermissionedDelayedWETHProxy",
   "PreimageOracle",
   "ProtocolVersions",
