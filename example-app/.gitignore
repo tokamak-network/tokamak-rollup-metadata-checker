@@ -135,7 +135,9 @@ dist
 
 # Gatsby files
 .cache/
-public
+# public folder is ignored, but bytecodes subfolder should be tracked
+public/*
+!public/bytecodes/
 
 # Storybook build outputs
 .out
